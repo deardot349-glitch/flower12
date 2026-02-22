@@ -12,7 +12,7 @@ export default async function FlowersPage() {
     redirect('/login')
   }
 
-  const shopId = session.user.shopId
+  const shopId = session.user.shopId!
 
   const flowers = await prisma.flower.findMany({
     where: { shopId },
