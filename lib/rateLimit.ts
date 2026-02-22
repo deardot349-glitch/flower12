@@ -37,8 +37,11 @@ export function rateLimit(request: NextRequest): NextResponse | null {
 
   // Clean up old entries periodically
   if (Math.random() < 0.01) {
-    for (const [k, v] of Array.from(rateLimitMap.entries())) {
-      if (now > v.resetTime) {
+    const keys = Array.from(rateLimitMap.keys())
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i]
+      const v = rateLimitMap.get(k)
+      if (v && now > v.resetTime) {
         rateLimitMap.delete(k)
       }
     }
