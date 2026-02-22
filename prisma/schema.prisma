@@ -1,0 +1,237 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Plan {
+  id                  String   @id @default(cuid())
+  name                String
+  slug                String   @unique
+  description         String?
+  price               Float    @default(0)
+  durationDays        Int      @default(30)
+  maxBouquets         Int
+  allowProfileDetails Boolean  @default(false)
+  features            String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  shops         Shop[]
+  subscriptions Subscription[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  emailVerified Boolean  @default(false)
+  verificationToken String?
+  verificationTokenExpiry DateTime?
+  resetToken String?
+  resetTokenExpiry DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  shop Shop?
+
+  @@index([email])
+  @@index([verificationToken])
+  @@index([resetToken])
+}
+
+model Shop {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  ownerId   String   @unique
+  planId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([ownerId])
+  @@index([planId])
+
+  // Basic Information
+  about          String?
+  logoUrl        String?
+  coverImageUrl  String?
+  
+  // Location Settings
+  location       String?
+  city           String?
+  country        String?
+  googleMapsUrl  String?
+  
+  // Contact Information
+  email          String?
+  phoneNumber    String?
+  whatsappNumber String?
+  telegramHandle String?
+  instagramHandle String?
+  
+  // Working Hours (JSON: {monday: {open: "09:00", close: "18:00", closed: false}, ...})
+  workingHours   String?
+  timezone       String?  @default("UTC")
+  
+  // Delivery Settings
+  sameDayDelivery      Boolean @default(true)
+  deliveryTimeEstimate String?
+  deliveryCutoffTime   String? @default("14:00")
+  minimumOrderAmount   Float?  @default(0)
+  
+  // Order Settings
+  autoConfirmOrders    Boolean @default(false)
+  requirePhoneVerify   Boolean @default(false)
+  showDeliveryEstimate Boolean @default(true)
+  allowSameDayOrders   Boolean @default(true)
+  
+  // Localization
+  language       String  @default("en") // en | uk
+  currency       String  @default("USD")
+  
+  // Appearance Settings
+  primaryColor   String? @default("#ec4899")
+  accentColor    String? @default("#a855f7")
+  enableAnimations Boolean @default(true)
+
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  plan            Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
+  flowers         Flower[]
+  orders          Order[]
+  subscriptions   Subscription[]
+  stockFlowers    StockFlower[]
+  wrappingOptions WrappingOption[]
+  deliveryZones   DeliveryZone[]
+}
+
+model DeliveryZone {
+  id                String   @id @default(cuid())
+  shopId            String
+  name              String
+  fee               Float
+  estimatedMinHours Int      @default(2)
+  estimatedMaxHours Int      @default(4)
+  sameDayAvailable  Boolean  @default(true)
+  minimumOrder      Float?   @default(0)
+  active            Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, active])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  shopId          String
+  planId          String
+  status          String   @default("pending")
+  startDate       DateTime?
+  expiryDate      DateTime?
+  autoRenew       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payment Payment?
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  subscriptionId String   @unique
+  cardLast4      String
+  cardType       String?
+  cardHolderName String
+  status         String   @default("pending")
+  amount         Float
+  approvedAt     DateTime?
+  approvedBy     String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model Flower {
+  id           String   @id @default(cuid())
+  shopId       String
+  name         String
+  price        Float
+  imageUrl     String?
+  availability String   @default("in_stock")
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, availability])
+  @@index([createdAt])
+}
+
+model StockFlower {
+  id          String   @id @default(cuid())
+  shopId      String
+  name        String
+  color       String?
+  pricePerStem Float
+  stockCount  Int
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model WrappingOption {
+  id          String   @id @default(cuid())
+  shopId      String
+  name        String
+  price       Float
+  imageUrl    String?
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id                  String   @id @default(cuid())
+  shopId              String
+  customerName        String
+  phone               String
+  email               String?
+  message             String?
+  orderType           String   @default("inquiry")
+  deliveryMethod      String?
+  deliveryAddress     String?
+  deliveryZoneId      String?
+  deliveryFee         Float?   @default(0)
+  estimatedDelivery   String?
+  customBouquet       String?
+  totalAmount         Float?   @default(0)
+  status              String   @default("pending")
+  paymentStatus       String   @default("unpaid")
+  scheduledDeliveryDate DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, status])
+  @@index([createdAt])
+}
