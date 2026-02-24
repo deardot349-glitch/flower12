@@ -102,6 +102,9 @@ model Shop {
   accentColor    String? @default("#a855f7")
   enableAnimations Boolean @default(true)
 
+  // Telegram Integration
+  telegramChatId String?
+
   owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   plan            Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
   flowers         Flower[]

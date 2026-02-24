@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 
-type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery'
+type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'telegram'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS: Record<string, string> = {
@@ -21,6 +21,11 @@ const defaultHours: WeeklyHours = Object.fromEntries(
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general')
+  const [telegramChatId, setTelegramChatId] = useState('')
+  const [telegramConnected, setTelegramConnected] = useState(false)
+  const [telegramLoading, setTelegramLoading] = useState(false)
+  const [telegramMsg, setTelegramMsg] = useState('')
+  const [telegramError, setTelegramError] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState<'cover' | 'logo' | null>(null)
   const [error, setError] = useState('')
@@ -106,6 +111,7 @@ export default function SettingsPage() {
         })
         if (s.coverImageUrl) setCoverPreview(s.coverImageUrl)
         if (s.logoUrl) setLogoPreview(s.logoUrl)
+        if (s.telegramChatId) { setTelegramChatId(s.telegramChatId); setTelegramConnected(true) }
         if (s.workingHours) {
           try {
             const parsed = JSON.parse(s.workingHours)
@@ -183,6 +189,7 @@ export default function SettingsPage() {
     { id: 'contact', label: 'Contact & Social', icon: '📞' },
     { id: 'hours', label: 'Working Hours', icon: '🕐' },
     { id: 'delivery', label: 'Delivery', icon: '🚚' },
+    { id: 'telegram', label: 'Telegram', icon: '✈️' },
   ]
 
   return (
@@ -519,7 +526,103 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                {/* ======== DELIVERY ======== */}
+                {/* ======== TELEGRAM ======== */}
+                {activeTab === 'telegram' && (
+                  <div className="space-y-6">
+                    <SectionTitle icon="✈️" title="Telegram Notifications" subtitle="Receive orders and manage them directly in Telegram" />
+
+                    {/* How it works */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-2">
+                      <p className="font-bold">📱 How it works:</p>
+                      <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                        <li>Open Telegram and search for <strong>@{process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'your_bot'}</strong></li>
+                        <li>Press <strong>Start</strong> or type <code className="bg-blue-100 px-1 rounded">/getchatid</code></li>
+                        <li>Copy the Chat ID the bot sends you</li>
+                        <li>Paste it below and click Connect</li>
+                      </ol>
+                      <p className="text-blue-600 text-xs mt-2">When a customer orders, you'll get a Telegram message with ✅ Confirm and ❌ Cancel buttons!</p>
+                    </div>
+
+                    {telegramConnected ? (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-green-800">✅ Telegram Connected!</p>
+                            <p className="text-sm text-green-600 mt-0.5">Chat ID: <code className="bg-green-100 px-1.5 py-0.5 rounded font-mono">{telegramChatId}</code></p>
+                          </div>
+                          <button type="button" onClick={async () => {
+                            setTelegramLoading(true); setTelegramError(''); setTelegramMsg('')
+                            try {
+                              await fetch('/api/telegram/connect', { method: 'DELETE' })
+                              setTelegramConnected(false); setTelegramChatId('')
+                              setTelegramMsg('Telegram disconnected.')
+                            } catch { setTelegramError('Failed to disconnect') }
+                            finally { setTelegramLoading(false) }
+                          }} disabled={telegramLoading}
+                            className="bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-200 transition-colors">
+                            Disconnect
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Your Telegram Chat ID</label>
+                          <input type="text" value={telegramChatId}
+                            onChange={e => setTelegramChatId(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none font-mono"
+                            placeholder="e.g. 123456789" />
+                          <p className="text-xs text-gray-400 mt-1">Get this by messaging the bot /getchatid</p>
+                        </div>
+                        <button type="button" onClick={async () => {
+                          if (!telegramChatId.trim()) { setTelegramError('Please enter your Chat ID'); return }
+                          setTelegramLoading(true); setTelegramError(''); setTelegramMsg('')
+                          try {
+                            const res = await fetch('/api/telegram/connect', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ chatId: telegramChatId.trim() })
+                            })
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(data.error)
+                            setTelegramConnected(true)
+                            setTelegramMsg(data.message)
+                          } catch (err: any) { setTelegramError(err.message) }
+                          finally { setTelegramLoading(false) }
+                        }} disabled={telegramLoading || !telegramChatId.trim()}
+                          className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                          {telegramLoading ? 'Connecting...' : '🔗 Connect Telegram'}
+                        </button>
+                      </div>
+                    )}
+
+                    {telegramMsg && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">{telegramMsg}</div>}
+                    {telegramError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{telegramError}</div>}
+
+                    {/* Preview of what message looks like */}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-2">Preview — what you'll receive:</p>
+                      <div className="bg-gray-900 rounded-2xl p-4 text-white text-sm font-mono space-y-1">
+                        <p>🌸 <strong>New Order — Your Shop</strong></p>
+                        <p>👤 Customer: Maria Kovalenko</p>
+                        <p>📞 Phone: +380991234567</p>
+                        <p>💐 Flower: Red Rose Bouquet — $45</p>
+                        <p>🚚 Delivery: Delivery</p>
+                        <p>📍 Address: Khreshchatyk 1, Kyiv</p>
+                        <p>💬 Message: Please add a card</p>
+                        <div className="mt-3 flex gap-2">
+                          <span className="bg-green-600 text-white px-3 py-1 rounded text-xs">✅ Confirm</span>
+                          <span className="bg-red-600 text-white px-3 py-1 rounded text-xs">❌ Cancel</span>
+                        </div>
+                        <div className="mt-1">
+                          <span className="bg-blue-600 text-white px-3 py-1 rounded text-xs">🎉 Mark Completed</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ======== DELIVERY ======== */
                 {activeTab === 'delivery' && (
                   <>
                     <SectionTitle icon="🚚" title="Delivery Settings" subtitle="Configure how you deliver to customers" />
