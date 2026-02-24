@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendTelegramMessage } from '@/lib/telegram'
+import { getPlanConfig } from '@/lib/plans'
 
 export async function POST(request: Request) {
   try {
@@ -12,24 +13,31 @@ export async function POST(request: Request) {
     }
 
     const { chatId } = await request.json()
-
     if (!chatId || !chatId.trim()) {
       return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 })
     }
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      include: { shop: true },
+      include: { shop: { include: { plan: true } } },
     })
 
     if (!user?.shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
     }
 
-    // Send a test message to verify the chat ID works
+    // Check plan allows Telegram
+    const planConfig = getPlanConfig(user.shop.plan.slug)
+    if (!planConfig.allowTelegram) {
+      return NextResponse.json(
+        { error: 'Telegram notifications are not available on the Free plan. Upgrade to Basic or Premium to use this feature.' },
+        { status: 403 }
+      )
+    }
+
     const testMsg = await sendTelegramMessage(
       chatId.trim(),
-      `✅ <b>Telegram connected!</b>\n\n🌸 Your shop "<b>${user.shop.name}</b>" will now send order notifications here.\n\nWhen an order comes in, you'll see the customer's details and can confirm or cancel right from Telegram!`
+      `✅ <b>Telegram підключено!</b>\n\n🌸 Ваш магазин "<b>${user.shop.name}</b>" тепер надсилатиме сповіщення про замовлення сюди.\n\nКоли надійде замовлення, ви побачите деталі клієнта і зможете підтвердити або скасувати прямо з Telegram!`
     )
 
     if (!testMsg) {
@@ -39,13 +47,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // Save the chat ID to the shop
     await prisma.shop.update({
       where: { id: user.shop.id },
       data: { telegramChatId: chatId.trim() },
     })
 
-    return NextResponse.json({ success: true, message: 'Telegram connected! Check your Telegram for a test message.' })
+    return NextResponse.json({ success: true, message: 'Telegram підключено! Перевірте Telegram — туди надійшло тестове повідомлення.' })
   } catch (error) {
     console.error('Telegram connect error:', error)
     return NextResponse.json({ error: 'Failed to connect Telegram' }, { status: 500 })
