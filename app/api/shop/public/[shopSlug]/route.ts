@@ -38,6 +38,7 @@ export async function GET(
         allowSameDayOrders: true,
         currency: true,
         language: true,
+        suspended: true,
         plan: true,
         flowers: {
           where: {
@@ -54,6 +55,10 @@ export async function GET(
 
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+    }
+
+    if ((shop as any).suspended) {
+      return NextResponse.json({ error: 'This shop has been suspended' }, { status: 403 })
     }
 
     return NextResponse.json({ shop })

@@ -205,10 +205,12 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
 
   if (!shop) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-50 via-white to-purple-50/30 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Shop Not Found</h1>
-          <p className="text-gray-600">This flower shop doesn't exist.</p>
+      <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <div className="text-6xl mb-4">🌸</div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Магазин не знайдено</h1>
+          <p className="text-gray-500 mb-6">Цей квітковий магазин не існує або був видалений.</p>
+          <a href="/" className="inline-block bg-pink-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-pink-600 transition-colors">← FlowerGoUa</a>
         </div>
       </div>
     )

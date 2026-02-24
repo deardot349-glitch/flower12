@@ -105,6 +105,11 @@ model Shop {
   // Telegram Integration
   telegramChatId String?
 
+  // Admin
+  suspended      Boolean  @default(false)
+  suspendedAt    DateTime?
+  suspendedReason String?
+
   owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   plan            Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
   flowers         Flower[]

@@ -140,11 +140,23 @@ export default function SettingsPage() {
       if (type === 'cover') {
         setShopData(p => ({ ...p, coverImageUrl: data.url }))
         setCoverPreview(data.url)
+        // Auto-save immediately
+        await fetch('/api/shop', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...shopData, coverImageUrl: data.url, workingHours: JSON.stringify(weeklyHours) }),
+        })
       } else {
         setShopData(p => ({ ...p, logoUrl: data.url }))
         setLogoPreview(data.url)
+        // Auto-save immediately
+        await fetch('/api/shop', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...shopData, logoUrl: data.url, workingHours: JSON.stringify(weeklyHours) }),
+        })
       }
-      notify('✅ Image uploaded!')
+      notify('✅ Фото збережено!')
     } catch (err: any) {
       setError(err.message)
     } finally {
