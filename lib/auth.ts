@@ -16,8 +16,11 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Always lowercase email to match how it was saved during signup
+        const normalizedEmail = credentials.email.toLowerCase().trim()
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: normalizedEmail },
           include: { shop: true }
         })
 
