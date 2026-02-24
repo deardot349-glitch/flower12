@@ -622,7 +622,7 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                {/* ======== DELIVERY ======== */
+                {/* ======== DELIVERY ======== */}
                 {activeTab === 'delivery' && (
                   <>
                     <SectionTitle icon="🚚" title="Delivery Settings" subtitle="Configure how you deliver to customers" />
