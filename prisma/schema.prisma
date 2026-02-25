@@ -102,6 +102,17 @@ model Shop {
   accentColor    String? @default("#a855f7")
   enableAnimations Boolean @default(true)
 
+  // Contact Visibility
+  showPhone        Boolean @default(true)
+  showEmail        Boolean @default(true)
+  showWhatsapp     Boolean @default(true)
+  showTelegram     Boolean @default(true)
+  showInstagram    Boolean @default(true)
+  showLocation     Boolean @default(true)
+
+  // Custom Bouquet
+  allowCustomBouquet Boolean @default(true)
+
   // Telegram Integration
   telegramChatId String?
 

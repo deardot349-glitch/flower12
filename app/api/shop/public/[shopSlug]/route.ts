@@ -39,6 +39,13 @@ export async function GET(
         currency: true,
         language: true,
         suspended: true,
+        showPhone: true,
+        showEmail: true,
+        showWhatsapp: true,
+        showTelegram: true,
+        showInstagram: true,
+        showLocation: true,
+        allowCustomBouquet: true,
         plan: true,
         flowers: {
           where: {

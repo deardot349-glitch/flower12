@@ -83,6 +83,17 @@ export async function PUT(request: Request) {
         requirePhoneVerify: body.requirePhoneVerify ?? false,
         showDeliveryEstimate: body.showDeliveryEstimate ?? true,
         allowSameDayOrders: body.allowSameDayOrders ?? true,
+
+        // Contact visibility
+        showPhone: body.showPhone ?? true,
+        showEmail: body.showEmail ?? true,
+        showWhatsapp: body.showWhatsapp ?? true,
+        showTelegram: body.showTelegram ?? true,
+        showInstagram: body.showInstagram ?? true,
+        showLocation: body.showLocation ?? true,
+
+        // Custom bouquet
+        allowCustomBouquet: body.allowCustomBouquet ?? true,
       },
     })
 
