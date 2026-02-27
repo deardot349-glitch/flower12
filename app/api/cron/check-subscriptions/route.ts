@@ -29,7 +29,13 @@ export async function GET(request: Request) {
         }
       },
       include: {
-        shop: true,
+        shop: {
+          include: {
+            owner: {
+              select: { email: true }
+            }
+          }
+        },
         plan: true
       }
     })
@@ -186,15 +192,6 @@ export async function POST(request: Request) {
         daysRemaining,
       })
     }
-    const _unusedWarnings = expiringSoon.map(sub => ({
-      shopName: sub.shop.name,
-      ownerEmail: sub.shop.owner.email,
-      planName: sub.plan.name,
-      expiryDate: sub.expiryDate,
-      daysRemaining: Math.ceil((sub.expiryDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    }))
-    void _unusedWarnings
-
     return NextResponse.json({
       success: true,
       count: expiringSoon.length,
