@@ -181,7 +181,8 @@ export async function POST(request: Request) {
           sub.shop.owner.email,
           sub.shop.name,
           sub.plan.name,
-          daysRemaining
+          daysRemaining,
+          sub.expiryDate ?? new Date()
         )
       } catch (emailErr) {
         console.error('Failed to send warning email to', sub.shop.owner.email, emailErr)
