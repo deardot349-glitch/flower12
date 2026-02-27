@@ -101,7 +101,9 @@ export async function GET(request: Request) {
             await sendSubscriptionExpiryWarning(
               sub.shop.owner.email,
               sub.shop.name,
-              sub.plan.name
+              sub.plan.name,
+              0,
+              sub.expiryDate ?? new Date()
             )
           }
         } catch (emailErr) {
