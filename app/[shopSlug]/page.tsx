@@ -282,7 +282,7 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
               <div className="flex-1 pb-2">
                 <h1 className="text-3xl md:text-5xl font-bold mb-2 drop-shadow-lg">{shop.name}</h1>
                 <div className="flex flex-wrap gap-3 text-sm">
-                  {shop.location && (
+                  {shop.showLocation && shop.location && (
                     <button onClick={openGoogleMaps}
                       className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-white/30 transition-all">
                       <span>📍</span> {shop.location}
@@ -329,24 +329,26 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
       )}
 
       {/* ===== CUSTOM BOUQUET BANNER ===== */}
-      <div className="relative overflow-hidden" style={{ background: `linear-gradient(to right, ${accent}, ${primary})` }}>
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 relative">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 animate-fadeIn">
-            <div className="text-center md:text-left">
-              <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                <span className="text-4xl">🎨</span>
-                <h2 className="text-2xl md:text-3xl font-bold text-white">Create Your Custom Bouquet</h2>
+      {shop.allowCustomBouquet && (
+        <div className="relative overflow-hidden" style={{ background: `linear-gradient(to right, ${accent}, ${primary})` }}>
+          <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 relative">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6 animate-fadeIn">
+              <div className="text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                  <span className="text-4xl">🎨</span>
+                  <h2 className="text-2xl md:text-3xl font-bold text-white">Create Your Custom Bouquet</h2>
+                </div>
+                <p className="text-white/90 text-sm md:text-base">Choose your own flowers, wrapping, and create something unique</p>
               </div>
-              <p className="text-white/90 text-sm md:text-base">Choose your own flowers, wrapping, and create something unique</p>
+              <a href={`/${shop.slug}/custom-bouquet`}
+                className="group bg-white px-8 py-4 rounded-xl font-semibold hover:bg-gray-50 transition-all shadow-xl whitespace-nowrap transform hover:scale-105 duration-300"
+                style={{ color: accent }}>
+                Start Creating →
+              </a>
             </div>
-            <a href={`/${shop.slug}/custom-bouquet`}
-              className="group bg-white px-8 py-4 rounded-xl font-semibold hover:bg-gray-50 transition-all shadow-xl whitespace-nowrap transform hover:scale-105 duration-300"
-              style={{ color: accent }}>
-              Start Creating →
-            </a>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ===== FLOWER CATALOG ===== */}
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-12">
