@@ -8,8 +8,10 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin-secret-2024'
 
 export async function GET(request: Request) {
   try {
+    // Accept secret from Authorization header (preferred) or query param (legacy fallback)
+    const authHeader = request.headers.get('authorization')
     const { searchParams } = new URL(request.url)
-    const secret = searchParams.get('secret')
+    const secret = authHeader?.replace('Bearer ', '') || searchParams.get('secret')
 
     if (secret !== ADMIN_SECRET) {
       return NextResponse.json(

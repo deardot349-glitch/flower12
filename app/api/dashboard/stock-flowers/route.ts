@@ -10,12 +10,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const flowers = await prisma.stockFlower.findMany({
-      where: { shopId: session.user.shopId },
-      orderBy: { name: 'asc' }
-    })
+    const [flowers, shop] = await Promise.all([
+      prisma.stockFlower.findMany({
+        where: { shopId: session.user.shopId },
+        orderBy: { name: 'asc' }
+      }),
+      prisma.shop.findUnique({
+        where: { id: session.user.shopId },
+        select: { currency: true }
+      })
+    ])
 
-    return NextResponse.json({ flowers })
+    return NextResponse.json({ flowers, currency: shop?.currency || 'USD' })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
   }

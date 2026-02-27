@@ -5,8 +5,10 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin-secret-2024'
 
 // GET - fetch all shops with full details
 export async function GET(request: Request) {
+  const authHeader = request.headers.get('authorization')
   const { searchParams } = new URL(request.url)
-  if (searchParams.get('secret') !== ADMIN_SECRET) {
+  const secret = authHeader?.replace('Bearer ', '') || searchParams.get('secret')
+  if (secret !== ADMIN_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

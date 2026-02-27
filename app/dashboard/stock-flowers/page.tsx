@@ -5,6 +5,7 @@ import Image from 'next/image'
 
 export default function StockFlowersPage() {
   const [flowers, setFlowers] = useState([])
+  const [currency, setCurrency] = useState('USD')
   const [showAddForm, setShowAddForm] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
@@ -23,7 +24,10 @@ export default function StockFlowersPage() {
     const res = await fetch('/api/dashboard/stock-flowers')
     const data = await res.json()
     setFlowers(data.flowers || [])
+    if (data.currency) setCurrency(data.currency)
   }
+
+  const currencySymbol = currency === 'UAH' ? '₴' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -118,7 +122,7 @@ export default function StockFlowersPage() {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700"
+          className="bg-pink-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-pink-700"
         >
           {showAddForm ? 'Cancel' : '+ Add Flower'}
         </button>
@@ -155,7 +159,7 @@ export default function StockFlowersPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price per Stem ($) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price per Stem ({currencySymbol}) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -184,7 +188,7 @@ export default function StockFlowersPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
               <label className="cursor-pointer">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-500">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-pink-500">
                   {uploading ? (
                     <p>Uploading...</p>
                   ) : formData.imageUrl ? (
@@ -202,7 +206,7 @@ export default function StockFlowersPage() {
             <button
               type="submit"
               disabled={uploading}
-              className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50"
+              className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-700 disabled:opacity-50"
             >
               Add Flower to Stock
             </button>
@@ -221,7 +225,7 @@ export default function StockFlowersPage() {
             <h3 className="font-bold text-lg text-gray-900">{flower.name}</h3>
             <p className="text-sm text-gray-600">{flower.color}</p>
             <div className="mt-2">
-              <span className="text-lg font-bold text-primary-600">${flower.pricePerStem}/stem</span>
+              <span className="text-lg font-bold text-pink-600">{currencySymbol}{flower.pricePerStem}/stem</span>
             </div>
             <div className="mt-3 flex items-center justify-between">
               <div className="flex items-center gap-2">

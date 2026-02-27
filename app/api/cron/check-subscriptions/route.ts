@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendSubscriptionExpiryWarning } from '@/lib/email/service'
 
 // This endpoint should be called by a cron job (e.g., Vercel Cron, or daily via curl)
 // For security, add an authorization header check in production
@@ -85,8 +86,23 @@ export async function GET(request: Request) {
       }
     }
 
-    // TODO: Send email notifications to shop owners about expiry
-    // This is where you'd integrate with your email service
+    // Send email notifications to shop owners about expiry
+    for (const result of results) {
+      if (result.status === 'downgraded') {
+        try {
+          const sub = expiredSubscriptions.find(s => s.shopId === result.shopId)
+          if (sub?.shop?.owner?.email) {
+            await sendSubscriptionExpiryWarning(
+              sub.shop.owner.email,
+              sub.shop.name,
+              sub.plan.name
+            )
+          }
+        } catch (emailErr) {
+          console.error('Failed to send expiry email:', emailErr)
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -148,14 +164,36 @@ export async function POST(request: Request) {
 
     console.log(`Found ${expiringSoon.length} subscriptions expiring soon`)
 
-    // TODO: Send warning emails to shop owners
-    const warnings = expiringSoon.map(sub => ({
+    // Send warning emails to shop owners
+    const warnings = []
+    for (const sub of expiringSoon) {
+      const daysRemaining = Math.ceil((sub.expiryDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      try {
+        await sendSubscriptionExpiryWarning(
+          sub.shop.owner.email,
+          sub.shop.name,
+          sub.plan.name,
+          daysRemaining
+        )
+      } catch (emailErr) {
+        console.error('Failed to send warning email to', sub.shop.owner.email, emailErr)
+      }
+      warnings.push({
+        shopName: sub.shop.name,
+        ownerEmail: sub.shop.owner.email,
+        planName: sub.plan.name,
+        expiryDate: sub.expiryDate,
+        daysRemaining,
+      })
+    }
+    const _unusedWarnings = expiringSoon.map(sub => ({
       shopName: sub.shop.name,
       ownerEmail: sub.shop.owner.email,
       planName: sub.plan.name,
       expiryDate: sub.expiryDate,
       daysRemaining: Math.ceil((sub.expiryDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     }))
+    void _unusedWarnings
 
     return NextResponse.json({
       success: true,

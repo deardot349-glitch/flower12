@@ -73,7 +73,7 @@ export async function answerCallbackQuery(callbackQueryId: string, text: string)
   }
 }
 
-export function buildOrderMessage(order: any, shopName: string, flower?: any) {
+export function buildOrderMessage(order: any, shopName: string, flower?: any, currencySymbol = '$') {
   const date = new Date(order.createdAt).toLocaleString('en-GB', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
@@ -82,10 +82,10 @@ export function buildOrderMessage(order: any, shopName: string, flower?: any) {
   text += `👤 <b>Customer:</b> ${order.customerName}\n`
   text += `📞 <b>Phone:</b> <a href="tel:${order.phone}">${order.phone}</a>\n`
   if (order.email) text += `✉️ <b>Email:</b> ${order.email}\n`
-  if (flower) text += `💐 <b>Flower:</b> ${flower.name} — $${flower.price}\n`
+  if (flower) text += `💐 <b>Flower:</b> ${flower.name} — ${currencySymbol}${flower.price}\n`
   if (order.deliveryMethod) text += `🚚 <b>Delivery:</b> ${order.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}\n`
   if (order.deliveryAddress) text += `📍 <b>Address:</b> ${order.deliveryAddress}\n`
-  if (order.totalAmount && order.totalAmount > 0) text += `💵 <b>Total:</b> $${order.totalAmount}\n`
+  if (order.totalAmount && order.totalAmount > 0) text += `💵 <b>Total:</b> ${currencySymbol}${order.totalAmount}\n`
   if (order.message) text += `\n💬 <b>Message:</b>\n${order.message}\n`
   text += `\n🕐 <i>${date}</i>`
 

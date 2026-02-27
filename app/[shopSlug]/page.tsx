@@ -52,6 +52,14 @@ interface Shop {
   currency: string
   language: string
   flowers: Flower[]
+  // Visibility toggles
+  showPhone: boolean
+  showEmail: boolean
+  showWhatsapp: boolean
+  showTelegram: boolean
+  showInstagram: boolean
+  showLocation: boolean
+  allowCustomBouquet: boolean
 }
 
 type OrderStep = 1 | 2 | 3 | 4
@@ -176,8 +184,14 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
           flowerId: selectedFlower?.id,
           customerName: formData.customerName,
           phone: formData.phone,
+          email: formData.email || undefined,
           message: orderMessage,
           deliveryMethod,
+          deliveryAddress: deliveryMethod === 'delivery' ? {
+            address: formData.address,
+            city: formData.city,
+            zipCode: formData.zipCode,
+          } : null,
         })
       })
       if (res.ok) {
@@ -450,7 +464,7 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">📞 Get in Touch</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {shop.location && (
+            {shop.showLocation && shop.location && (
               <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
                 <h3 className="font-semibold text-gray-900 mb-2">📍 Visit Us</h3>
                 <p className="text-sm text-gray-600 mb-3">{shop.location}{shop.city ? `, ${shop.city}` : ''}</p>
@@ -489,66 +503,68 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
               </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
-              <h3 className="font-semibold text-gray-900 mb-4">💬 Quick Contact</h3>
-              <div className="space-y-2">
-                {shop.phoneNumber && (
-                  <a href={`tel:${shop.phoneNumber}`} className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white text-sm">📞</div>
-                    <div>
-                      <div className="text-xs text-gray-500">Call</div>
-                      <div className="text-sm font-medium text-gray-900">{shop.phoneNumber}</div>
-                    </div>
-                  </a>
-                )}
-                {shop.whatsappNumber && (
-                  <a href={`https://wa.me/${shop.whatsappNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ background: '#25D366' }}>💬</div>
-                    <div>
-                      <div className="text-xs text-gray-500">WhatsApp</div>
-                      <div className="text-sm font-medium text-gray-900">Message Us</div>
-                    </div>
-                  </a>
-                )}
-                {shop.telegramHandle && (
-                  <a href={`https://t.me/${shop.telegramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ background: '#0088cc' }}>✈️</div>
-                    <div>
-                      <div className="text-xs text-gray-500">Telegram</div>
-                      <div className="text-sm font-medium text-gray-900">{shop.telegramHandle}</div>
-                    </div>
-                  </a>
-                )}
-                {shop.instagramHandle && (
-                  <a href={`https://instagram.com/${shop.instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>📸</div>
-                    <div>
-                      <div className="text-xs text-gray-500">Instagram</div>
-                      <div className="text-sm font-medium text-gray-900">{shop.instagramHandle}</div>
-                    </div>
-                  </a>
-                )}
-                {shop.email && (
-                  <a href={`mailto:${shop.email}`}
-                    className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-                    <div className="w-8 h-8 bg-gray-500 rounded-lg flex items-center justify-center text-white text-sm">✉️</div>
-                    <div>
-                      <div className="text-xs text-gray-500">Email</div>
-                      <div className="text-sm font-medium text-gray-900">{shop.email}</div>
-                    </div>
-                  </a>
-                )}
+            {(shop.showPhone || shop.showWhatsapp || shop.showTelegram || shop.showInstagram || shop.showEmail) && (
+              <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow">
+                <h3 className="font-semibold text-gray-900 mb-4">💬 Quick Contact</h3>
+                <div className="space-y-2">
+                  {shop.showPhone && shop.phoneNumber && (
+                    <a href={`tel:${shop.phoneNumber}`} className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                      <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white text-sm">📞</div>
+                      <div>
+                        <div className="text-xs text-gray-500">Call</div>
+                        <div className="text-sm font-medium text-gray-900">{shop.phoneNumber}</div>
+                      </div>
+                    </a>
+                  )}
+                  {shop.showWhatsapp && shop.whatsappNumber && (
+                    <a href={`https://wa.me/${shop.whatsappNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ background: '#25D366' }}>💬</div>
+                      <div>
+                        <div className="text-xs text-gray-500">WhatsApp</div>
+                        <div className="text-sm font-medium text-gray-900">Message Us</div>
+                      </div>
+                    </a>
+                  )}
+                  {shop.showTelegram && shop.telegramHandle && (
+                    <a href={`https://t.me/${shop.telegramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ background: '#0088cc' }}>✈️</div>
+                      <div>
+                        <div className="text-xs text-gray-500">Telegram</div>
+                        <div className="text-sm font-medium text-gray-900">{shop.telegramHandle}</div>
+                      </div>
+                    </a>
+                  )}
+                  {shop.showInstagram && shop.instagramHandle && (
+                    <a href={`https://instagram.com/${shop.instagramHandle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>📸</div>
+                      <div>
+                        <div className="text-xs text-gray-500">Instagram</div>
+                        <div className="text-sm font-medium text-gray-900">{shop.instagramHandle}</div>
+                      </div>
+                    </a>
+                  )}
+                  {shop.showEmail && shop.email && (
+                    <a href={`mailto:${shop.email}`}
+                      className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                      <div className="w-8 h-8 bg-gray-500 rounded-lg flex items-center justify-center text-white text-sm">✉️</div>
+                      <div>
+                        <div className="text-xs text-gray-500">Email</div>
+                        <div className="text-sm font-medium text-gray-900">{shop.email}</div>
+                      </div>
+                    </a>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {shop.location && (
+          {shop.showLocation && shop.location && (
             <div className="mt-8 rounded-2xl overflow-hidden shadow-lg">
               <iframe
-                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(shop.location)}`}
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(shop.location + (shop.city ? ', ' + shop.city : ''))}&output=embed`}
                 width="100%" height="400" style={{ border: 0 }} allowFullScreen loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade" className="w-full"
               />
@@ -566,19 +582,19 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
               <p className="text-sm text-gray-400">Beautiful flowers for every occasion</p>
             </div>
             <div className="flex items-center gap-3">
-              {shop.instagramHandle && (
+              {shop.showInstagram && shop.instagramHandle && (
                 <a href={`https://instagram.com/${shop.instagramHandle.replace('@','')}`} target="_blank" rel="noopener noreferrer"
                   className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
                   📸
                 </a>
               )}
-              {shop.telegramHandle && (
+              {shop.showTelegram && shop.telegramHandle && (
                 <a href={`https://t.me/${shop.telegramHandle.replace('@','')}`} target="_blank" rel="noopener noreferrer"
                   className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
                   ✈️
                 </a>
               )}
-              {shop.whatsappNumber && (
+              {shop.showWhatsapp && shop.whatsappNumber && (
                 <a href={`https://wa.me/${shop.whatsappNumber.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer"
                   className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
                   💬

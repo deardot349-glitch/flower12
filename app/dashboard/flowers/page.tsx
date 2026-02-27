@@ -14,10 +14,10 @@ export default async function FlowersPage() {
 
   const shopId = session.user.shopId!
 
-  const flowers = await prisma.flower.findMany({
-    where: { shopId },
-    orderBy: { createdAt: 'desc' },
-  })
+  const [shop, flowers] = await Promise.all([
+    prisma.shop.findUnique({ where: { id: shopId }, select: { currency: true } }),
+    prisma.flower.findMany({ where: { shopId }, orderBy: { createdAt: 'desc' } }),
+  ])
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -30,7 +30,7 @@ export default async function FlowersPage() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-xl shadow-sm p-6 sticky top-4">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Flower</h2>
-            <AddFlowerForm shopId={shopId} />
+            <AddFlowerForm shopId={shopId} currency={shop?.currency} />
           </div>
         </div>
 

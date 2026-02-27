@@ -39,7 +39,9 @@ export async function GET(
 
     return NextResponse.json({
       stockFlowers: shop.stockFlowers,
-      wrappingOptions: shop.wrappingOptions
+      wrappingOptions: shop.wrappingOptions,
+      currency: shop.currency,
+      shopName: shop.name
     })
   } catch (error: any) {
     console.error('Failed to fetch custom bouquet data:', error)

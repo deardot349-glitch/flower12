@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import CopyButton from '@/components/CopyButton'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -269,17 +270,4 @@ function QuickAction({ href, icon, label, desc, highlight }: {
   )
 }
 
-// Client-side copy button handled as a simple inline component
-function CopyButton({ text }: { text: string }) {
-  // This is a server component, so we'll inline it as a simple link that does nothing on server
-  // The actual copy functionality is handled via inline onclick
-  return (
-    <button
-      type="button"
-      className="flex-shrink-0 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm transition-colors"
-      title="Copy link"
-    >
-      📋
-    </button>
-  )
-}
+

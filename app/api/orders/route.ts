@@ -6,7 +6,7 @@ import { sendTelegramMessage, buildOrderMessage, buildOrderKeyboard } from '@/li
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { shopSlug, shopId, customerName, phone, message, flowerId, email } = body
+    const { shopSlug, shopId, customerName, phone, message, flowerId, email, deliveryMethod, deliveryAddress } = body
 
     if (!customerName || !phone) {
       return NextResponse.json(
@@ -39,12 +39,23 @@ export async function POST(request: Request) {
       }
     }
 
+    // Build a readable delivery address string
+    let deliveryAddressStr: string | null = null
+    if (deliveryMethod === 'delivery' && deliveryAddress) {
+      const parts = [deliveryAddress.address, deliveryAddress.city, deliveryAddress.zipCode].filter(Boolean)
+      deliveryAddressStr = parts.join(', ')
+    }
+
     const order = await prisma.order.create({
       data: {
         shopId: finalShopId,
         customerName,
         phone,
+        email: email || null,
         message: orderMessage || null,
+        deliveryMethod: deliveryMethod || null,
+        deliveryAddress: deliveryAddressStr,
+        totalAmount: flower ? flower.price : 0,
       }
     })
 
@@ -68,7 +79,11 @@ export async function POST(request: Request) {
     // Send Telegram notification if connected
     if (shop?.telegramChatId) {
       try {
-        const text = buildOrderMessage(order, shop.name, flower)
+        const shopCurrencySymbol =
+          shop.currency === 'UAH' ? '\u20B4' :
+          shop.currency === 'EUR' ? '\u20AC' :
+          shop.currency === 'GBP' ? '\u00A3' : '$'
+        const text = buildOrderMessage(order, shop.name, flower, shopCurrencySymbol)
         const keyboard = buildOrderKeyboard(order.id)
         await sendTelegramMessage(shop.telegramChatId, text, keyboard)
       } catch (tgError) {

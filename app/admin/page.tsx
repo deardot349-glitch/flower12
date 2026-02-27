@@ -41,7 +41,9 @@ export default function AdminPage() {
     if (!secret) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/payments?secret=${secret}`)
+      const res = await fetch('/api/admin/payments', {
+        headers: { 'Authorization': `Bearer ${secret}` }
+      })
       if (res.ok) { setAuthenticated(true); fetchAll() }
       else notify('Невірний секретний ключ', 'error')
     } catch { notify('Помилка підключення', 'error') }
@@ -52,8 +54,8 @@ export default function AdminPage() {
     setLoading(true)
     try {
       const [paymentsRes, shopsRes] = await Promise.all([
-        fetch(`/api/admin/payments?secret=${secret}`),
-        fetch(`/api/admin/shops?secret=${secret}`),
+        fetch('/api/admin/payments', { headers: { 'Authorization': `Bearer ${secret}` } }),
+        fetch('/api/admin/shops', { headers: { 'Authorization': `Bearer ${secret}` } }),
       ])
       const paymentsData = await paymentsRes.json()
       const shopsData = await shopsRes.json()

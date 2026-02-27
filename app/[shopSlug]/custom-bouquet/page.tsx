@@ -47,7 +47,8 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
   const [loading, setLoading] = useState(true)
   const [stockFlowers, setStockFlowers] = useState<StockFlower[]>([])
   const [wrappingOptions, setWrappingOptions] = useState<WrappingOption[]>([])
-  
+  const [currency, setCurrency] = useState('USD')
+
   const [bouquet, setBouquet] = useState<CustomBouquet>({
     flowers: [],
     wrapping: null,
@@ -83,6 +84,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
       if (data.stockFlowers && data.wrappingOptions) {
         setStockFlowers(data.stockFlowers)
         setWrappingOptions(data.wrappingOptions)
+        if (data.currency) setCurrency(data.currency)
       }
     } catch (err) {
       console.error('Failed to load data')
@@ -98,7 +100,6 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
     )
     const wrappingTotal = bouquet.wrapping?.price || 0
     const total = flowersTotal + wrappingTotal
-    
     setBouquet(prev => ({ ...prev, totalPrice: total }))
   }
 
@@ -152,21 +153,17 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
       alert('Please select at least one flower')
       return
     }
-
     const totalStems = getTotalStems()
     const sizeConfig = BOUQUET_SIZES[bouquet.size]
-    
     if (totalStems < sizeConfig.minStems) {
       alert(`${bouquet.size} bouquet requires at least ${sizeConfig.minStems} stems. You have ${totalStems}.`)
       return
     }
-
     setShowCheckout(true)
   }
 
   const submitOrder = async () => {
     setSubmitStatus('loading')
-
     try {
       const res = await fetch('/api/custom-bouquet', {
         method: 'POST',
@@ -191,7 +188,6 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
           }
         })
       })
-
       if (res.ok) {
         setSubmitStatus('success')
         setTimeout(() => {
@@ -218,6 +214,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
 
   const totalStems = getTotalStems()
   const sizeConfig = BOUQUET_SIZES[bouquet.size]
+  const currencySymbol = currency === 'UAH' ? '₴' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-pink-50 via-white to-purple-50/30">
@@ -278,7 +275,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                 <span className="flex items-center justify-center w-8 h-8 bg-pink-100 text-pink-600 rounded-full text-sm font-bold">2</span>
                 Select Flowers
               </h2>
-              
+
               {stockFlowers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p>No flowers available for custom bouquets at the moment.</p>
@@ -299,51 +296,36 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                       >
                         <div className="relative h-24 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-2 overflow-hidden">
                           {flower.imageUrl ? (
-                            <Image
-                              src={flower.imageUrl}
-                              alt={flower.name}
-                              fill
-                              className="object-cover"
-                            />
+                            <Image src={flower.imageUrl} alt={flower.name} fill className="object-cover" />
                           ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-3xl">
-                              🌸
-                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center text-3xl">🌸</div>
                           )}
                         </div>
                         <h3 className="font-semibold text-sm text-gray-900">{flower.name}</h3>
-                        {flower.color && (
-                          <p className="text-xs text-gray-500">{flower.color}</p>
-                        )}
+                        {flower.color && <p className="text-xs text-gray-500">{flower.color}</p>}
                         <p className="text-sm font-bold text-pink-600 mt-1">
-                          ${flower.pricePerStem.toFixed(2)}/stem
+                          {currencySymbol}{flower.pricePerStem.toFixed(2)}/stem
                         </p>
                         <p className="text-xs text-gray-400">Stock: {flower.stockCount}</p>
-                        
+
                         {selected ? (
                           <div className="flex items-center gap-2 mt-2">
                             <button
                               onClick={() => updateFlowerQuantity(flower.id, selected.quantity - 1)}
                               className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded transition-colors text-sm font-semibold"
-                            >
-                              −
-                            </button>
+                            >−</button>
                             <span className="font-bold text-gray-900">{selected.quantity}</span>
                             <button
                               onClick={() => updateFlowerQuantity(flower.id, selected.quantity + 1)}
                               disabled={selected.quantity >= flower.stockCount}
                               className="flex-1 bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded transition-colors text-sm font-semibold disabled:opacity-50"
-                            >
-                              +
-                            </button>
+                            >+</button>
                           </div>
                         ) : (
                           <button
                             onClick={() => addFlower(flower)}
                             className="w-full mt-2 bg-pink-500 hover:bg-pink-600 text-white px-3 py-1 rounded transition-colors text-sm font-semibold"
-                          >
-                            Add
-                          </button>
+                          >Add</button>
                         )}
                       </div>
                     )
@@ -358,7 +340,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                 <span className="flex items-center justify-center w-8 h-8 bg-pink-100 text-pink-600 rounded-full text-sm font-bold">3</span>
                 Choose Wrapping Style
               </h2>
-              
+
               {wrappingOptions.length === 0 ? (
                 <div className="text-center py-4 text-gray-500">
                   <p className="text-sm">No wrapping options available</p>
@@ -377,21 +359,14 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                     >
                       <div className="relative h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg mb-2 overflow-hidden">
                         {wrapping.imageUrl ? (
-                          <Image
-                            src={wrapping.imageUrl}
-                            alt={wrapping.name}
-                            fill
-                            className="object-cover"
-                          />
+                          <Image src={wrapping.imageUrl} alt={wrapping.name} fill className="object-cover" />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-2xl">
-                            🎁
-                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center text-2xl">🎁</div>
                         )}
                       </div>
                       <h3 className="font-semibold text-sm text-gray-900">{wrapping.name}</h3>
                       <p className="text-sm font-bold text-pink-600">
-                        {wrapping.price > 0 ? `+$${wrapping.price.toFixed(2)}` : 'Free'}
+                        {wrapping.price > 0 ? `+${currencySymbol}${wrapping.price.toFixed(2)}` : 'Free'}
                       </p>
                     </button>
                   ))}
@@ -450,7 +425,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                           {flower.color && <span className="text-gray-500 text-xs ml-1">({flower.color})</span>}
                         </div>
                         <span className="font-semibold text-gray-700">
-                          ${(flower.quantity * flower.pricePerStem).toFixed(2)}
+                          {currencySymbol}{(flower.quantity * flower.pricePerStem).toFixed(2)}
                         </span>
                       </div>
                     ))}
@@ -464,7 +439,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-700">Wrapping: {bouquet.wrapping.name}</span>
                     <span className="font-semibold text-gray-700">
-                      ${bouquet.wrapping.price.toFixed(2)}
+                      {currencySymbol}{bouquet.wrapping.price.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -474,7 +449,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
               <div className="mb-6 p-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg text-white">
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold">Total:</span>
-                  <span className="text-2xl font-bold">${bouquet.totalPrice.toFixed(2)}</span>
+                  <span className="text-2xl font-bold">{currencySymbol}{bouquet.totalPrice.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -623,7 +598,7 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                     </div>
                     <div className="flex justify-between font-bold text-base pt-2 border-t">
                       <span>Total:</span>
-                      <span className="text-pink-600">${bouquet.totalPrice.toFixed(2)}</span>
+                      <span className="text-pink-600">{currencySymbol}{bouquet.totalPrice.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -634,7 +609,6 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
                   </div>
                 )}
 
-                {/* Submit Button */}
                 <button
                   onClick={submitOrder}
                   disabled={
@@ -655,14 +629,8 @@ export default function CustomBouquetPage({ params }: { params: { shopSlug: stri
 
       <style jsx>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-out forwards;
