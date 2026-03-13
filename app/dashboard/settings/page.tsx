@@ -527,58 +527,6 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                {/* ══════════ CUSTOM BOUQUET ══════════ */}
-                {activeTab === 'custombouquet' && (
-                  <>
-                    <SectionTitle icon="💐" title="Кастомні букети" subtitle="Дозвольте клієнтам складати власні букети з ваших квітів" />
-
-                    <Toggle
-                      label="Увімкнути кастомні букети"
-                      hint="На сторінці магазину з'явиться кнопка 'Створити кастомний букет' — клієнти самі обирають квіти, кількість та упаковку"
-                      checked={shopData.allowCustomBouquet}
-                      onChange={v => set('allowCustomBouquet', v)}
-                    />
-
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-2xl p-5 space-y-3">
-                      <p className="font-bold text-purple-900 text-sm flex items-center gap-2">💐 Як це працює</p>
-                      <div className="space-y-2.5 text-sm text-purple-800">
-                        {[
-                          ['①', 'Додайте квіти у "Запас квітів" з цінами за стебло — саме з них клієнт збирає букет'],
-                          ['②', 'Додайте варіанти упаковки у "Wrapping" з цінами'],
-                          ['③', 'Клієнт відкриває будівник, обирає квіти + кількість + упаковку і бачить ціну в реальному часі'],
-                          ['④', 'Замовлення надходить вам — з\'являється в розділі Замовлення і приходить в Telegram'],
-                        ].map(([num, text]) => (
-                          <div key={num} className="flex items-start gap-3">
-                            <span className="w-6 h-6 bg-purple-200 rounded-full flex items-center justify-center text-xs font-bold text-purple-800 flex-shrink-0 mt-0.5">{num}</span>
-                            <span>{text}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <a href="/dashboard/assortment?tab=stock"
-                        className="flex items-center gap-4 p-5 bg-white border-2 border-gray-200 rounded-2xl hover:border-pink-300 hover:bg-pink-50 transition-all group">
-                        <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🌷</div>
-                        <div className="flex-1">
-                          <p className="font-bold text-gray-900 group-hover:text-pink-600 transition-colors">Запас квітів</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Управляти стеблами для будівника</p>
-                        </div>
-                        <span className="text-gray-300 group-hover:text-pink-400 text-lg transition-colors">→</span>
-                      </a>
-                      <a href="/dashboard/assortment?tab=wrapping"
-                        className="flex items-center gap-4 p-5 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:bg-purple-50 transition-all group">
-                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎁</div>
-                        <div className="flex-1">
-                          <p className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">Упаковка</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Додати стилі та ціни упаковки</p>
-                        </div>
-                        <span className="text-gray-300 group-hover:text-purple-400 text-lg transition-colors">→</span>
-                      </a>
-                    </div>
-                  </>
-                )}
-
                 {/* ══════════ TELEGRAM ══════════ */}
                 {activeTab === 'telegram' && (
                   <div className="space-y-6">
