@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendOrderNotificationToShop } from '@/lib/email/service'
+import { sendTelegramMessage, buildOrderMessage, buildOrderKeyboard } from '@/lib/telegram'
 
 export async function POST(request: Request) {
   try {
@@ -12,78 +13,103 @@ export async function POST(request: Request) {
       email,
       deliveryMethod,
       deliveryAddress,
-      customBouquet
+      customBouquet,
     } = body
 
-    // Find shop
-    const shop = await prisma.shop.findUnique({
-      where: { slug: shopSlug },
-      include: { owner: true }
-    })
-
-    if (!shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+    if (!customerName?.trim() || !phone?.trim()) {
+      return NextResponse.json({ error: "Ім'я та телефон обов'язкові" }, { status: 400 })
+    }
+    if (!customBouquet || !customBouquet.flowers?.length) {
+      return NextResponse.json({ error: 'Виберіть хоча б одну квітку' }, { status: 400 })
     }
 
-    // Create detailed order message
-    const flowersList = customBouquet.flowers
-      .map((f: any) => `${f.quantity}x ${f.name} (${f.color}) @ $${f.pricePerStem}/stem = $${(f.quantity * f.pricePerStem).toFixed(2)}`)
+    const shop = await prisma.shop.findUnique({
+      where: { slug: shopSlug },
+      include: { plan: true, owner: true },
+    })
+    if (!shop) return NextResponse.json({ error: 'Магазин не знайдено' }, { status: 404 })
+
+    // Plan gate check
+    if (shop.plan.slug !== 'premium') {
+      return NextResponse.json(
+        { error: 'Кастомні букети доступні лише на тарифі Преміум' },
+        { status: 403 }
+      )
+    }
+
+    const sym = shop.currency === 'UAH' ? '₴'
+      : shop.currency === 'EUR' ? '€'
+      : shop.currency === 'GBP' ? '£' : '$'
+
+    // Build readable order message
+    const flowerLines = customBouquet.flowers
+      .map((f: any) => `  • ${f.quantity}x ${f.name}${f.color ? ` (${f.color})` : ''} — ${sym}${(f.quantity * f.pricePerStem).toFixed(2)}`)
       .join('\n')
 
-    const orderMessage = `
-🎨 CUSTOM BOUQUET ORDER
+    const extraLines = (customBouquet.extras || [])
+      .map((ex: any) => `  • ${ex.name}${ex.price > 0 ? ` — ${sym}${ex.price}` : ' (безкоштовно)'}`)
+      .join('\n')
 
-📦 Flowers:
-${flowersList}
+    const orderMessage = [
+      '🎨 КАСТОМНИЙ БУКЕТ',
+      '',
+      '💐 Квіти:',
+      flowerLines,
+      customBouquet.wrapping
+        ? `🎁 Обгортка: ${customBouquet.wrapping.name}${customBouquet.wrapping.price > 0 ? ` (+${sym}${customBouquet.wrapping.price})` : ' (безкоштовно)'}`
+        : '',
+      extraLines ? `🎀 Додатково:\n${extraLines}` : '',
+      customBouquet.specialInstructions ? `💬 Побажання: ${customBouquet.specialInstructions}` : '',
+      `💰 Разом: ${sym}${(customBouquet.totalPrice || 0).toFixed(2)}`,
+      '',
+      deliveryMethod === 'pickup'
+        ? '🏪 Самовивіз'
+        : `🚚 Доставка: ${deliveryAddress ? [deliveryAddress.address, deliveryAddress.city].filter(Boolean).join(', ') : ''}`,
+    ].filter(s => s !== '').join('\n')
 
-🎁 Wrapping: ${customBouquet.wrapping?.name || 'None'} ${customBouquet.wrapping?.price > 0 ? `(+$${customBouquet.wrapping.price})` : ''}
+    const deliveryAddressStr = deliveryMethod === 'delivery' && deliveryAddress
+      ? [deliveryAddress.address, deliveryAddress.city, deliveryAddress.zipCode].filter(Boolean).join(', ')
+      : null
 
-💬 Special Instructions:
-${customBouquet.specialInstructions || 'None'}
-
-💰 Total: $${customBouquet.totalPrice.toFixed(2)}
-
-${deliveryMethod === 'pickup' ? '🏪 PICKUP at store' : `🚚 DELIVERY to:
-${deliveryAddress.address}
-${deliveryAddress.city}, ${deliveryAddress.zipCode}`}
-
-Contact: ${customerName}
-Phone: ${phone}
-${email ? `Email: ${email}` : ''}
-    `.trim()
-
-    // Create order
     const order = await prisma.order.create({
       data: {
         shopId: shop.id,
-        customerName,
-        phone,
-        email: email || null,
+        customerName: customerName.trim(),
+        phone: phone.trim(),
+        email: email?.trim() || null,
         message: orderMessage,
         orderType: 'custom_bouquet',
         deliveryMethod,
-        deliveryAddress: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
+        deliveryAddress: deliveryAddressStr,
         customBouquet: JSON.stringify(customBouquet),
-        status: 'pending'
-      }
+        totalAmount: customBouquet.totalPrice || 0,
+        status: 'pending',
+      },
     })
 
-    // Send email notification
+    // Email notification
     try {
       await sendOrderNotificationToShop(shop.owner.email, shop.name, order, null)
-    } catch (emailError) {
-      console.error('Failed to send email:', emailError)
+    } catch (err) {
+      console.error('Email notification failed:', err)
     }
 
-    return NextResponse.json({
-      success: true,
-      order,
-      message: 'Custom bouquet order placed successfully!'
-    })
+    // Telegram notification
+    try {
+      if ((shop as any).telegramChatId) {
+        const text = buildOrderMessage(order, shop.name, null, sym)
+        const keyboard = buildOrderKeyboard(order.id)
+        await sendTelegramMessage((shop as any).telegramChatId, text, keyboard)
+      }
+    } catch (err) {
+      console.error('Telegram notification failed:', err)
+    }
+
+    return NextResponse.json({ success: true, order })
   } catch (error: any) {
     console.error('Custom bouquet order error:', error)
     return NextResponse.json(
-      { error: 'Failed to place order' },
+      { error: 'Не вдалося створити замовлення: ' + (error.message || 'невідома помилка') },
       { status: 500 }
     )
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import OrderModal from './OrderModal'
 
 interface Flower {
@@ -15,17 +16,25 @@ interface Flower {
 export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId: string }) {
   const [showOrderModal, setShowOrderModal] = useState(false)
 
+  const isUnavailable = flower.availability === 'out_of_stock'
+
   const getAvailabilityBadge = () => {
     if (flower.availability === 'in_stock') {
       return (
-        <span className="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">
-          In Stock
+        <span className="inline-block bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full">
+          В наявності
         </span>
       )
     } else if (flower.availability === 'limited') {
       return (
-        <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded">
-          Limited
+        <span className="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">
+          Мало
+        </span>
+      )
+    } else if (isUnavailable) {
+      return (
+        <span className="inline-block bg-gray-100 text-gray-500 text-xs font-bold px-2.5 py-1 rounded-full">
+          Немає
         </span>
       )
     }
@@ -34,37 +43,46 @@ export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId:
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
+      <div className={`bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${isUnavailable ? 'opacity-60' : ''}`}>
+        {/* Image */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50" style={{ height: '220px' }}>
           {flower.imageUrl ? (
-            <img
+            <Image
               src={flower.imageUrl}
               alt={flower.name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <span className="text-6xl">🌸</span>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-7xl">🌸</span>
+            </div>
           )}
         </div>
-        <div className="p-6">
+
+        {/* Content */}
+        <div className="p-4">
           <div className="flex justify-between items-start mb-2">
-            <h3 className="text-xl font-semibold text-gray-900">{flower.name}</h3>
+            <h3 className="text-lg font-black text-gray-900 leading-snug">{flower.name}</h3>
             {getAvailabilityBadge()}
           </div>
+
           {flower.description && (
-            <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+            <p className="text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">
               {flower.description}
             </p>
           )}
-          <div className="flex justify-between items-center">
-            <p className="text-2xl font-bold text-primary-600">
-              ${flower.price.toFixed(2)}
+
+          <div className="flex items-center justify-between gap-3 mt-3">
+            <p className="text-2xl font-black text-pink-600">
+              ₴{flower.price.toFixed(0)}
             </p>
             <button
-              onClick={() => setShowOrderModal(true)}
-              className="bg-primary-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+              onClick={() => !isUnavailable && setShowOrderModal(true)}
+              disabled={isUnavailable}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:from-pink-600 hover:to-purple-700 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"
             >
-              Order
+              {isUnavailable ? 'Немає' : 'Замовити'}
             </button>
           </div>
         </div>

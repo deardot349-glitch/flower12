@@ -16,6 +16,7 @@ export interface PlanConfig {
   allowCoverPhoto: boolean
   allowStockManagement: boolean
   allowWrappingOptions: boolean
+  allowCustomBouquet: boolean
   allowRemoveBranding: boolean
   features: string[]
   limitations: string[]
@@ -28,7 +29,7 @@ export const PLANS: PlanConfig[] = [
     name: 'Безкоштовний',
     price: 0,
     priceLabel: 'Безкоштовно',
-    tagline: 'Спробуйте платформу з простим магазином.',
+    tagline: 'Спробуйте платформу без жодного ризику.',
     durationDays: 0,
     maxBouquets: 5,
     allowProfileDetails: false,
@@ -39,14 +40,16 @@ export const PLANS: PlanConfig[] = [
     allowCoverPhoto: false,
     allowStockManagement: false,
     allowWrappingOptions: false,
+    allowCustomBouquet: false,
     allowRemoveBranding: false,
     features: [
-      'До 5 букетів у каталозі',
-      'Базова сторінка магазину',
-      'Приймання замовлень',
-      'Email сповіщення',
+      'До 5 букетів (ідеально для старту та тестування)',
+      'Публічна сторінка магазину — поділіться з першими клієнтами',
+      'Приймання замовлень через сайт',
+      'Email сповіщення про нові замовлення',
     ],
     limitations: [
+      'Без кастомного конструктора букетів',
       'Без Telegram сповіщень',
       'Без зон доставки',
       'Без аналітики',
@@ -58,7 +61,7 @@ export const PLANS: PlanConfig[] = [
     name: 'Базовий',
     price: 800,
     priceLabel: '800 грн / міс',
-    tagline: 'Для магазинів, що розвиваються.',
+    tagline: 'Для магазинів що активно ростуть.',
     durationDays: 30,
     maxBouquets: 30,
     allowProfileDetails: true,
@@ -69,18 +72,20 @@ export const PLANS: PlanConfig[] = [
     allowCoverPhoto: false,
     allowStockManagement: false,
     allowWrappingOptions: false,
+    allowCustomBouquet: false,
     allowRemoveBranding: true,
     features: [
-      'До 30 букетів у каталозі',
-      'Повний профіль (адреса, години, контакти)',
-      'Telegram сповіщення з кнопками',
-      'Зони доставки',
-      'WhatsApp та Instagram посилання',
-      'Без брендингу платформи',
+      'До 30 букетів (ідеально для більшості магазинів)',
+      'Повний профіль — адреса, години роботи, контакти',
+      'Telegram сповіщення з кнопками — не пропустіть жодне замовлення',
+      'Зони доставки з вартістю — клієнти бачать ціну одразу',
+      'Посилання на WhatsApp та Instagram',
+      'Без логотипу платформи — магазин виглядає вашим',
       'Базова статистика замовлень',
     ],
     limitations: [
-      'Без аналітики',
+      'Без кастомного конструктора букетів',
+      'Без детальної аналітики',
       'Без кастомних кольорів',
     ],
     highlight: true,
@@ -90,7 +95,7 @@ export const PLANS: PlanConfig[] = [
     name: 'Преміум',
     price: 1500,
     priceLabel: '1500 грн / міс',
-    tagline: 'Максимум можливостей для серйозного бізнесу.',
+    tagline: 'Повний контроль для серйозного бізнесу.',
     durationDays: 30,
     maxBouquets: 100,
     allowProfileDetails: true,
@@ -101,16 +106,19 @@ export const PLANS: PlanConfig[] = [
     allowCoverPhoto: true,
     allowStockManagement: true,
     allowWrappingOptions: true,
+    allowCustomBouquet: true,
     allowRemoveBranding: true,
     features: [
-      'До 100 букетів у каталозі',
+      'До 100 букетів — повний каталог без обмежень',
       'Все з Базового плану',
-      'Повна аналітика (замовлення, дохід, популярні квіти)',
-      'Кастомні кольори та логотип',
-      'Фото обкладинки',
-      'Управління запасами',
-      'Варіанти обгортання',
-      'Пріоритетна підтримка',
+      '🔥 Кастомний конструктор букетів — клієнт збирає сам',
+      '🔥 Кастом речі — іграшки, вузлики, цукерки тощо',
+      'Детальна аналітика — доходи, популярні букети, тренди',
+      'Власні кольори та логотип — повністю ваш бренд',
+      'Фото обкладинки — перше враження, що продає',
+      'Управління запасами — клієнти бачать наявність',
+      'Варіанти обгортання — більше вибору = більший чек',
+      'Пріоритетна підтримка — відповідаємо першочергово',
     ],
     limitations: [],
   },
@@ -123,7 +131,6 @@ export function getPlanConfig(slug: string | null | undefined): PlanConfig {
   return match ?? fallback
 }
 
-// Check if a shop's plan allows a specific feature
 export function planAllows(planSlug: string | null | undefined, feature: keyof PlanConfig): boolean {
   const plan = getPlanConfig(planSlug)
   return !!plan[feature]

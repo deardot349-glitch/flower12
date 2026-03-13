@@ -28,7 +28,7 @@ export async function sendTelegramMessage(chatId: string, text: string, replyMar
     const data = await res.json()
     if (!data.ok) {
       console.error('Telegram API error:', data)
-      return null
+      return { ok: false, error: data.description || 'Unknown error', error_code: data.error_code }
     }
     return data.result
   } catch (err) {

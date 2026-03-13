@@ -68,7 +68,13 @@ export async function GET(
       return NextResponse.json({ error: 'This shop has been suspended' }, { status: 403 })
     }
 
-    return NextResponse.json({ shop })
+    // Override allowCustomBouquet based on actual plan — never trust the DB field alone
+    const shopWithPlanGate = {
+      ...shop,
+      allowCustomBouquet: (shop as any).plan?.slug === 'premium' && shop.allowCustomBouquet,
+    }
+
+    return NextResponse.json({ shop: shopWithPlanGate })
   } catch (error: any) {
     console.error('Failed to fetch shop:', error)
     return NextResponse.json({ error: 'Failed to load shop' }, { status: 500 })

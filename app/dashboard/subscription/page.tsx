@@ -109,6 +109,18 @@ export default function SubscriptionPage() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">{error}</div>}
       {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 text-sm">{success}</div>}
 
+      {/* Premium feature callout */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-5 mb-8 flex items-start gap-4">
+        <div className="text-3xl">🔥</div>
+        <div className="flex-1">
+          <p className="font-black text-purple-900 mb-1">Кастомний конструктор букетів — лише на Преміум</p>
+          <p className="text-sm text-purple-700">На Преміум плані ваші клієнти можуть самостійно складати кастомні букети з ваших квітів, обирати упаковку та кастом речі (іграшки, вузлики, цукерки) — і бачити ціну в реальному часі.</p>
+        </div>
+        {currentPlanSlug !== 'premium' && (
+          <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-bold whitespace-nowrap mt-1">Недоступно</span>
+        )}
+      </div>
+
       {/* Plan cards */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         {PLANS.map((plan) => {

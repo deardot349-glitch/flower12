@@ -101,6 +101,7 @@ model Shop {
   primaryColor   String? @default("#ec4899")
   accentColor    String? @default("#a855f7")
   enableAnimations Boolean @default(true)
+  layoutStyle    String? @default("classic")
 
   // Contact Visibility
   showPhone        Boolean @default(true)
@@ -129,6 +130,7 @@ model Shop {
   stockFlowers    StockFlower[]
   wrappingOptions WrappingOption[]
   deliveryZones   DeliveryZone[]
+  customExtras    CustomExtra[]
 }
 
 model DeliveryZone {
@@ -192,6 +194,8 @@ model Flower {
   imageUrl     String?
   availability String   @default("in_stock")
   description  String?
+  madeAt       DateTime?
+  isCustom     Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
@@ -226,6 +230,22 @@ model WrappingOption {
   updatedAt   DateTime @updatedAt
   
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model CustomExtra {
+  id          String   @id @default(cuid())
+  shopId      String
+  name        String
+  description String?
+  price       Float    @default(0)
+  imageUrl    String?
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
 }
 
 model Order {

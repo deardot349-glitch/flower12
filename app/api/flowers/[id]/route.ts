@@ -39,6 +39,8 @@ export async function PATCH(
         price: body.price ?? flower.price,
         imageUrl: body.imageUrl ?? flower.imageUrl,
         description: body.description ?? flower.description,
+        madeAt: body.madeAt !== undefined ? (body.madeAt ? new Date(body.madeAt) : null) : flower.madeAt,
+        ...(body.isCustom !== undefined ? { isCustom: Boolean(body.isCustom) } : {}),
       }
     })
 

@@ -94,6 +94,9 @@ export async function PUT(request: Request) {
 
         // Custom bouquet
         allowCustomBouquet: body.allowCustomBouquet ?? true,
+
+        // Layout
+        ...(body.layoutStyle !== undefined ? { layoutStyle: body.layoutStyle || 'classic' } : {}),
       },
     })
 

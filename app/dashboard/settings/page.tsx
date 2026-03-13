@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 
-type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'custombouquet' | 'telegram'
+type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'telegram'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS: Record<string, string> = {
@@ -18,6 +18,49 @@ const defaultDayHours: DayHours = { open: '09:00', close: '18:00', closed: false
 const defaultHours: WeeklyHours = Object.fromEntries(
   DAYS.map(d => [d, { ...defaultDayHours, closed: d === 'sunday' }])
 )
+
+const LAYOUT_PRESETS = [
+  {
+    id: 'classic',
+    name: 'Класичний',
+    icon: '🏪',
+    desc: 'Сітка карток з тінями',
+    preview: [
+      { w: '60%', h: 8, r: 6, c: '#f3f4f6' },
+      { w: '100%', h: 36, r: 12, c: '#e5e7eb', cols: 3 },
+    ],
+  },
+  {
+    id: 'modern',
+    name: 'Сучасний',
+    icon: '✨',
+    desc: 'Великі фото, мінімум тексту',
+    preview: [
+      { w: '50%', h: 8, r: 6, c: '#f3f4f6' },
+      { w: '100%', h: 48, r: 16, c: '#e5e7eb', cols: 2 },
+    ],
+  },
+  {
+    id: 'list',
+    name: 'Список',
+    icon: '📋',
+    desc: 'Рядки з ціною та кнопкою',
+    preview: [
+      { w: '40%', h: 8, r: 6, c: '#f3f4f6' },
+      { w: '100%', h: 16, r: 8, c: '#e5e7eb', cols: 1, repeat: 3 },
+    ],
+  },
+  {
+    id: 'bold',
+    name: 'Жирний',
+    icon: '🔥',
+    desc: 'Великі плитки на весь екран',
+    preview: [
+      { w: '55%', h: 10, r: 6, c: '#f3f4f6' },
+      { w: '100%', h: 56, r: 12, c: '#e5e7eb', cols: 1 },
+    ],
+  },
+]
 
 const COLOR_THEMES = [
   { name: 'Рожевий',      primary: '#ec4899', accent: '#a855f7' },
@@ -61,7 +104,7 @@ export default function SettingsPage() {
     name: '', about: '', language: 'uk', currency: 'UAH', timezone: 'Europe/Kyiv',
     // Appearance
     coverImageUrl: '', logoUrl: '',
-    primaryColor: '#ec4899', accentColor: '#a855f7', enableAnimations: true,
+    primaryColor: '#ec4899', accentColor: '#a855f7', enableAnimations: true, layoutStyle: 'classic',
     // Location
     location: '', city: '', country: '', googleMapsUrl: '',
     // Contacts
@@ -94,7 +137,7 @@ export default function SettingsPage() {
           language: s.language || 'uk', currency: s.currency || 'UAH', timezone: s.timezone || 'Europe/Kyiv',
           coverImageUrl: s.coverImageUrl || '', logoUrl: s.logoUrl || '',
           primaryColor: s.primaryColor || '#ec4899', accentColor: s.accentColor || '#a855f7',
-          enableAnimations: s.enableAnimations ?? true,
+          enableAnimations: s.enableAnimations ?? true, layoutStyle: s.layoutStyle || 'classic',
           location: s.location || '', city: s.city || '', country: s.country || '',
           googleMapsUrl: s.googleMapsUrl || '', email: s.email || '',
           phoneNumber: s.phoneNumber || '', whatsappNumber: s.whatsappNumber || '',
@@ -169,7 +212,6 @@ export default function SettingsPage() {
     { id: 'contact',       label: 'Контакти',        icon: '📞' },
     { id: 'hours',         label: 'Години роботи',   icon: '🕐' },
     { id: 'delivery',      label: 'Доставка',        icon: '🚚' },
-    { id: 'custombouquet', label: 'Кастом букети',   icon: '💐' },
     { id: 'telegram',      label: 'Telegram',        icon: '✈️' },
   ]
 
@@ -244,14 +286,7 @@ export default function SettingsPage() {
                           <option value="PLN">🇵🇱 PLN – Злотий</option>
                         </select>
                       </Field>
-                      <Field label="Часовий пояс">
-                        <select value={shopData.timezone} onChange={e => set('timezone', e.target.value)} className={inputCls}>
-                          <option value="Europe/Kyiv">Europe/Kyiv</option>
-                          <option value="UTC">UTC</option>
-                          <option value="Europe/London">Europe/London</option>
-                          <option value="Europe/Warsaw">Europe/Warsaw</option>
-                        </select>
-                      </Field>
+
                     </div>
                   </>
                 )}
@@ -522,7 +557,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <a href="/dashboard/stock-flowers"
+                      <a href="/dashboard/assortment?tab=stock"
                         className="flex items-center gap-4 p-5 bg-white border-2 border-gray-200 rounded-2xl hover:border-pink-300 hover:bg-pink-50 transition-all group">
                         <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🌷</div>
                         <div className="flex-1">
@@ -531,7 +566,7 @@ export default function SettingsPage() {
                         </div>
                         <span className="text-gray-300 group-hover:text-pink-400 text-lg transition-colors">→</span>
                       </a>
-                      <a href="/dashboard/wrapping"
+                      <a href="/dashboard/assortment?tab=wrapping"
                         className="flex items-center gap-4 p-5 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:bg-purple-50 transition-all group">
                         <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎁</div>
                         <div className="flex-1">
@@ -548,14 +583,24 @@ export default function SettingsPage() {
                 {activeTab === 'telegram' && (
                   <div className="space-y-6">
                     <SectionTitle icon="✈️" title="Telegram сповіщення" subtitle="Отримуйте замовлення і керуйте ними прямо в Telegram" />
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 space-y-2">
-                      <p className="font-bold">📱 Як це працює:</p>
-                      <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                        <li>Відкрийте Telegram і знайдіть <strong>@{process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'your_bot'}</strong></li>
-                        <li>Натисніть <strong>Start</strong> або введіть <code className="bg-blue-100 px-1 rounded">/getchatid</code></li>
-                        <li>Скопіюйте Chat ID який надішле бот</li>
-                        <li>Вставте нижче і натисніть Підключити</li>
-                      </ol>
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5 text-sm text-blue-800 space-y-3">
+                      <p className="font-bold text-base">📱 Як підключити — 4 кроки:</p>
+                      <div className="space-y-2.5">
+                        {[
+                          { n: '1', text: <>Відкрийте Telegram і знайдіть бота <a href="https://t.me/flower12go_bot" target="_blank" className="font-bold underline">@flower12go_bot</a></> },
+                          { n: '2', text: <>Натисніть кнопку <strong>▶ Start</strong> (обов'язково — без цього бот не зможе надсилати вам повідомлення)</> },
+                          { n: '3', text: <>Введіть команду <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">/getchatid</code> — бот відповість вашим Chat ID</> },
+                          { n: '4', text: 'Скопіюйте число і вставте нижче' },
+                        ].map(({ n, text }) => (
+                          <div key={n} className="flex items-start gap-3">
+                            <span className="w-6 h-6 bg-blue-200 text-blue-900 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">{n}</span>
+                            <span className="text-blue-700 leading-snug">{text}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-xs mt-1">
+                        ⚠️ <strong>Важливо:</strong> якщо ви ще не натискали Start у боті — підключення не вийде. Спочатку відкрийте бота і натисніть Start.
+                      </div>
                     </div>
                     {telegramConnected ? (
                       <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
@@ -583,7 +628,7 @@ export default function SettingsPage() {
                           <input type="text" value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)}
                             className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none font-mono"
                             placeholder="наприклад: 123456789" />
-                          <p className="text-xs text-gray-400 mt-1">Отримайте командою /getchatid у боті</p>
+                          <p className="text-xs text-gray-400 mt-1">Отримайте командою <code className="bg-gray-100 px-1 rounded">/getchatid</code> у <a href="https://t.me/flower12go_bot" target="_blank" className="text-blue-500 hover:underline">@flower12go_bot</a></p>
                         </div>
                         <button type="button" onClick={async () => {
                           if (!telegramChatId.trim()) { setTelegramError('Введіть Chat ID'); return }

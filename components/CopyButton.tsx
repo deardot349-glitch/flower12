@@ -16,10 +16,10 @@ export default function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="flex-shrink-0 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm transition-colors"
-      title="Copy link"
+      className="flex-shrink-0 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm transition-colors font-medium"
+      title="Скопіювати посилання"
     >
-      {copied ? '✅' : '📋'}
+      {copied ? '✅ Скопійовано' : '📋 Копіювати'}
     </button>
   )
 }

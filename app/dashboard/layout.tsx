@@ -31,8 +31,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </Link>
               <div className="hidden md:flex gap-1">
                 <NavLink href="/dashboard">Головна</NavLink>
-                <NavLink href="/dashboard/flowers">Букети</NavLink>
+                <NavLink href="/dashboard/assortment">Асортимент</NavLink>
                 <NavLink href="/dashboard/orders">Замовлення</NavLink>
+                <NavLink href="/dashboard/delivery">Доставка</NavLink>
                 <NavLink href="/dashboard/subscription">Підписка</NavLink>
                 <NavLink href="/dashboard/settings">Налаштування</NavLink>
               </div>
@@ -55,8 +56,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="flex gap-1 overflow-x-auto">
           {[
             { href: '/dashboard', label: 'Головна' },
-            { href: '/dashboard/flowers', label: 'Букети' },
+            { href: '/dashboard/assortment', label: 'Асортимент' },
             { href: '/dashboard/orders', label: 'Замовлення' },
+            { href: '/dashboard/delivery', label: 'Доставка' },
             { href: '/dashboard/subscription', label: 'Підписка' },
             { href: '/dashboard/settings', label: 'Налаштування' },
           ].map(l => (

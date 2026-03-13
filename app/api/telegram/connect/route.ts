@@ -40,11 +40,23 @@ export async function POST(request: Request) {
       `✅ <b>Telegram підключено!</b>\n\n🌸 Ваш магазин "<b>${user.shop.name}</b>" тепер надсилатиме сповіщення про замовлення сюди.\n\nКоли надійде замовлення, ви побачите деталі клієнта і зможете підтвердити або скасувати прямо з Telegram!`
     )
 
-    if (!testMsg) {
-      return NextResponse.json(
-        { error: 'Could not send message to that Chat ID. Make sure you have started the bot first.' },
-        { status: 400 }
-      )
+    if (!testMsg || (testMsg && testMsg.ok === false)) {
+      const tgError = testMsg?.error || ''
+      const tgCode = testMsg?.error_code
+
+      let friendlyError = 'Не вдалося надіслати повідомлення. '
+
+      if (tgCode === 403 || tgError.includes('bot was blocked') || tgError.includes('Forbidden')) {
+        friendlyError += 'Ви заблокували бота. Відкрийте @flower12go_bot у Telegram і натисніть Unblock або Start.'
+      } else if (tgCode === 400 && tgError.includes('chat not found')) {
+        friendlyError += 'Chat ID не знайдено. Відкрийте @flower12go_bot, натисніть Start, потім введіть /getchatid і використайте отримане число.'
+      } else if (!process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN === 'your_telegram_bot_token_here') {
+        friendlyError += 'TELEGRAM_BOT_TOKEN не налаштований на сервері. Додайте токен у .env файл.'
+      } else {
+        friendlyError += `Telegram відповів: "${tgError}". Переконайтесь що ви натиснули Start у @flower12go_bot і Chat ID введено правильно.`
+      }
+
+      return NextResponse.json({ error: friendlyError }, { status: 400 })
     }
 
     await prisma.shop.update({
