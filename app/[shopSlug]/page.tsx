@@ -121,8 +121,20 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
     setFormData({ customerName: '', phone: '', email: '', address: '', city: '', zipCode: '', message: '' })
   }
 
-  const nextStep = () => { if (currentStep < 4) setCurrentStep((currentStep + 1) as OrderStep) }
-  const prevStep = () => { if (currentStep > 1) setCurrentStep((currentStep - 1) as OrderStep) }
+  const nextStep = () => {
+    if (currentStep === 2 && deliveryMethod === 'pickup') {
+      setCurrentStep(4) // skip address step for pickup
+    } else if (currentStep < 4) {
+      setCurrentStep((currentStep + 1) as OrderStep)
+    }
+  }
+  const prevStep = () => {
+    if (currentStep === 4 && deliveryMethod === 'pickup') {
+      setCurrentStep(2) // skip back over address step
+    } else if (currentStep > 1) {
+      setCurrentStep((currentStep - 1) as OrderStep)
+    }
+  }
 
   const getEstimatedDelivery = () => {
     if (!shop || deliveryMethod !== 'delivery') return null
@@ -703,7 +715,7 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
 
                 {/* Progress steps */}
                 <div className="flex items-center gap-2 mb-6">
-                  {[1,2,3,4].map((s) => (
+                  {(deliveryMethod === 'pickup' ? [1,2,4] : [1,2,3,4]).map((s) => (
                     <div key={s} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${s <= currentStep ? 'opacity-100' : 'opacity-20'}`}
                       style={{ background: s <= currentStep ? `linear-gradient(to right, ${primary}, ${accent})` : '#e5e7eb' }} />
                   ))}
@@ -711,15 +723,21 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
 
                 {/* SUCCESS */}
                 {submitStatus === 'success' ? (
-                  <div className="text-center py-10">
-                    <div className="text-7xl mb-5">✅</div>
+                  <div className="text-center py-8">
+                    <div className="text-7xl mb-4">✅</div>
                     <h3 className="text-2xl font-black text-gray-900 mb-2">Замовлення прийнято!</h3>
-                    <p className="text-gray-500">Ми зателефонуємо на <span className="font-bold text-gray-900">{formData.phone}</span> для підтвердження.</p>
+                    <p className="text-gray-500 mb-4">Ми зателефонуємо на <span className="font-bold text-gray-900">{formData.phone}</span> для підтвердження.</p>
                     {estimatedDelivery && deliveryMethod === 'delivery' && (
-                      <p className="mt-4 text-sm text-green-700 bg-green-50 rounded-xl p-3 inline-block">
+                      <p className="mb-4 text-sm text-green-700 bg-green-50 rounded-xl p-3">
                         🚚 Очікувана доставка: {estimatedDelivery}
                       </p>
                     )}
+                    <a href={`/${shop?.slug}/track-order`}
+                      className="block w-full py-3.5 rounded-2xl font-bold text-white shadow-md active:scale-[0.98] transition-all"
+                      style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
+                      📦 Відстежити замовлення
+                    </a>
+                    <p className="text-xs text-gray-400 mt-2">Введіть номер телефону щоб перевірити статус</p>
                   </div>
                 ) : (
                   <>

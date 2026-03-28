@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       if (shop && (shop as any).telegramChatId) {
         const sym = shop.currency === 'UAH' ? '₴' : shop.currency === 'EUR' ? '€' : shop.currency === 'GBP' ? '£' : '$'
         const text = buildOrderMessage(order, shop.name, flower, sym)
-        const keyboard = buildOrderKeyboard(order.id)
+        const keyboard = buildOrderKeyboard(order.id, 'pending')
         await sendTelegramMessage((shop as any).telegramChatId, text, keyboard)
       }
     } catch (tgErr) {
