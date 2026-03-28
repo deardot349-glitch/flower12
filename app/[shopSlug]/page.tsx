@@ -364,6 +364,11 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
             <h2 className="text-xl md:text-2xl font-black text-gray-900">Букети в наявності</h2>
             <p className="text-sm text-gray-400 mt-0.5">{shop.flowers.length} букетів в наявності</p>
           </div>
+          <a href={`/${shop.slug}/track-order`}
+            className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl border-2 transition-all active:scale-95 hover:shadow-sm"
+            style={{ color: primary, borderColor: `${primary}40`, background: `${primary}08` }}>
+            📦 Моє замовлення
+          </a>
         </div>
 
         {shop.flowers.length === 0 ? (
@@ -413,13 +418,13 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
           // ── GRID layouts: classic / modern / bold ────────────────
           <div className={`grid gap-4 md:gap-5 ${
             layout === 'bold' ? 'grid-cols-1' :
-            layout === 'modern' ? 'grid-cols-1 sm:grid-cols-2' :
-            'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
+            layout === 'modern' ? 'grid-cols-2 sm:grid-cols-2' :
+            'grid-cols-2 sm:grid-cols-2 xl:grid-cols-3'
           }`}>
             {shop.flowers.map((flower, idx) => {
               const badge = getBadgeLabel(flower.createdAt)
               const isUnavailable = flower.availability === 'out_of_stock'
-              const imgHeight = layout === 'bold' ? '320px' : layout === 'modern' ? '260px' : '220px'
+              const imgHeight = layout === 'bold' ? '320px' : layout === 'modern' ? '180px' : '160px'
               return (
                 <div key={flower.id}
                   className={`bg-white rounded-3xl shadow-sm overflow-hidden card-hover anim-fade border border-gray-100 ${isUnavailable ? 'opacity-60' : ''}`}
@@ -448,20 +453,20 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
                     )}
                   </div>
                   {/* Content */}
-                  <div className={`p-4 ${layout === 'bold' ? 'flex items-center justify-between' : ''}`}>
+                  <div className={`p-3 md:p-4 ${layout === 'bold' ? 'flex items-center justify-between' : ''}`}>
                     {layout !== 'bold' && (
                       <>
-                        <h3 className="text-lg font-black text-gray-900 mb-1 leading-snug">{flower.name}</h3>
-                        {flower.description && <p className="text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">{flower.description}</p>}
+                        <h3 className="text-sm md:text-lg font-black text-gray-900 mb-1 leading-snug line-clamp-2">{flower.name}</h3>
+                        {flower.description && <p className="hidden md:block text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">{flower.description}</p>}
                       </>
                     )}
-                    <div className={`flex items-center justify-between gap-3 ${layout !== 'bold' ? 'mt-3' : ''}`}>
-                      <div className={`font-black ${layout === 'bold' ? 'text-3xl' : 'text-2xl'}`} style={{ color: primary }}>
+                    <div className={`flex items-center justify-between gap-1.5 md:gap-3 ${layout !== 'bold' ? 'mt-2 md:mt-3' : ''}`}>
+                      <div className={`font-black ${layout === 'bold' ? 'text-3xl' : 'text-base md:text-2xl'}`} style={{ color: primary }}>
                         {currencySymbol}{flower.price.toFixed(0)}
                       </div>
                       <button onClick={() => !isUnavailable && handleOrder(flower)} disabled={isUnavailable}
-                        className={`btn-primary text-white rounded-2xl font-bold text-sm transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0 ${
-                          layout === 'bold' ? 'px-8 py-4 text-base' : 'px-5 py-3'
+                        className={`btn-primary text-white rounded-xl font-bold transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0 text-xs md:text-sm ${
+                          layout === 'bold' ? 'px-8 py-4 text-base' : 'px-3 py-2 md:px-5 md:py-3'
                         }`}>
                         {isUnavailable ? 'Немає' : 'Замовити'}
                       </button>
@@ -648,8 +653,11 @@ export default function ShopPage({ params }: { params: { shopSlug: string } }) {
               )}
             </div>
           </div>
-          <div className="mt-6 pt-5 border-t border-white/10 text-center text-xs text-gray-500">
-            © {new Date().getFullYear()} {shop.name}
+          <div className="mt-6 pt-5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-xs text-gray-500">© {new Date().getFullYear()} {shop.name}</span>
+            <a href={`/${shop.slug}/track-order`} className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1.5 active:opacity-70">
+              📦 Відстежити замовлення
+            </a>
           </div>
         </div>
       </div>

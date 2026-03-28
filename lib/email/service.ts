@@ -4,7 +4,7 @@
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-const fromEmail = process.env.FROM_EMAIL || 'noreply@flowerplatform.com'
+const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev'
 
 export async function sendWelcomeEmail(email: string, shopName: string, shopSlug: string) {
   try {
