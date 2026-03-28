@@ -26,7 +26,8 @@ export default async function DashboardPage() {
   const publicUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${shopSlug}`
 
   const totalOrders = shop.orders.length
-  const pendingOrders = shop.orders.filter(o => o.status === 'pending').length
+  const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivering']
+  const pendingOrders = shop.orders.filter(o => activeStatuses.includes(o.status)).length
   const inStockCount = shop.flowers.filter(f => f.availability === 'in_stock').length
   const recentOrders = shop.orders.slice(0, 5)
   const totalFlowerStems = shop.stockFlowers.reduce((sum, sf) => sum + sf.stockCount, 0)
@@ -44,17 +45,25 @@ export default async function DashboardPage() {
     shop.currency === 'GBP' ? '£' : '$'
 
   const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    confirmed: 'bg-blue-100 text-blue-700',
-    completed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
+    pending:    'bg-yellow-100 text-yellow-700',
+    confirmed:  'bg-blue-100 text-blue-700',
+    preparing:  'bg-purple-100 text-purple-700',
+    ready:      'bg-pink-100 text-pink-700',
+    delivering: 'bg-blue-100 text-blue-700',
+    delivered:  'bg-green-100 text-green-700',
+    completed:  'bg-green-100 text-green-700',
+    cancelled:  'bg-red-100 text-red-700',
   }
 
   const statusLabels: Record<string, string> = {
-    pending: 'Очікує',
-    confirmed: 'Підтверджено',
-    completed: 'Виконано',
-    cancelled: 'Скасовано',
+    pending:    '⏳ Очікує',
+    confirmed:  '✅ Підтверджено',
+    preparing:  '💐 Готується',
+    ready:      '🎁 Готово',
+    delivering: '🚚 В дорозі',
+    delivered:  '🎉 Доставлено',
+    completed:  '⭐ Завершено',
+    cancelled:  '❌ Скасовано',
   }
 
   const completionItems = [

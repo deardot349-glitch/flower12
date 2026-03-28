@@ -1,47 +1,86 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
-  completed: 'bg-green-100 text-green-800 border-green-200',
-  cancelled: 'bg-red-100 text-red-800 border-red-200',
+// ── Status config ──────────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, {
+  label: string; icon: string; color: string; bg: string; border: string; next: string[]
+}> = {
+  pending:    { label: 'Очікує',        icon: '⏳', color: '#d97706', bg: '#fef3c7', border: '#fde68a', next: ['confirmed', 'cancelled'] },
+  confirmed:  { label: 'Підтверджено',  icon: '✅', color: '#2563eb', bg: '#dbeafe', border: '#bfdbfe', next: ['preparing', 'cancelled'] },
+  preparing:  { label: 'Готується',     icon: '💐', color: '#7c3aed', bg: '#ede9fe', border: '#ddd6fe', next: ['ready', 'cancelled'] },
+  ready:      { label: 'Готово',        icon: '🎁', color: '#db2777', bg: '#fce7f3', border: '#fbcfe8', next: ['delivering', 'delivered', 'cancelled'] },
+  delivering: { label: 'В дорозі',      icon: '🚚', color: '#1d4ed8', bg: '#dbeafe', border: '#93c5fd', next: ['delivered', 'cancelled'] },
+  delivered:  { label: 'Доставлено',    icon: '🎉', color: '#059669', bg: '#d1fae5', border: '#a7f3d0', next: ['completed'] },
+  completed:  { label: 'Завершено',     icon: '⭐', color: '#059669', bg: '#d1fae5', border: '#6ee7b7', next: [] },
+  cancelled:  { label: 'Скасовано',     icon: '❌', color: '#dc2626', bg: '#fee2e2', border: '#fecaca', next: ['pending'] },
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: '⏳ Очікує',
-  confirmed: '✅ Підтверджено',
-  completed: '🎉 Виконано',
-  cancelled: '❌ Скасовано',
+// The visual pipeline steps shown on each order card
+const PIPELINE = ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered']
+
+const NEXT_LABEL: Record<string, string> = {
+  confirmed:  '✅ Підтвердити',
+  preparing:  '💐 Розпочати',
+  ready:      '🎁 Готово',
+  delivering: '🚚 Передати кур\'єру',
+  delivered:  '🎉 Доставлено',
+  completed:  '⭐ Завершити',
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'щойно'
+  if (mins < 60) return `${mins} хв тому`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} год тому`
+  return `${Math.floor(hrs / 24)} дн тому`
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleString('uk-UA', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+  })
 }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('active')
   const [updating, setUpdating] = useState<string | null>(null)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [search, setSearch] = useState('')
 
-  useEffect(() => { fetchOrders() }, [])
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3500)
+  }
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/orders/manage')
       const data = await res.json()
       if (data.orders) setOrders(data.orders)
-    } catch (err) {
-      console.error('Помилка завантаження замовлень')
+    } catch {
+      showToast('Помилка завантаження замовлень', 'error')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  // Auto-refresh every 60s
+  useEffect(() => {
+    const interval = setInterval(fetchOrders, 60000)
+    return () => clearInterval(interval)
+  }, [fetchOrders])
 
   const updateStatus = async (orderId: string, status: string) => {
     setUpdating(orderId)
-    setMessage('')
     try {
       const res = await fetch('/api/orders/manage', {
         method: 'PATCH',
@@ -50,202 +89,315 @@ export default function OrdersPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
-        setMessage(`Замовлення позначено: ${STATUS_LABELS[status] || status}`)
-        setTimeout(() => setMessage(''), 3000)
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, updatedAt: new Date().toISOString() } : o))
+        const cfg = STATUS_CONFIG[status]
+        showToast(`${cfg?.icon} Статус змінено: ${cfg?.label}`)
+        // Auto-collapse on cancel/complete
+        if (status === 'cancelled' || status === 'completed') {
+          setExpandedOrder(null)
+        }
       } else {
-        setMessage(data.error || 'Помилка оновлення')
+        showToast(data.error || 'Помилка оновлення', 'error')
       }
     } catch {
-      setMessage('Не вдалося оновити замовлення')
+      showToast('Не вдалося оновити статус', 'error')
     } finally {
       setUpdating(null)
     }
   }
 
-  const filtered = orders.filter(o => filter === 'all' || o.status === filter)
+  // Filter logic
+  const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered']
+  const filteredOrders = orders.filter(o => {
+    const matchSearch = !search || 
+      o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+      o.phone?.includes(search)
+    if (!matchSearch) return false
+    if (filter === 'active') return activeStatuses.includes(o.status)
+    if (filter === 'all') return true
+    return o.status === filter
+  })
 
   const counts = {
-    all: orders.length,
+    active: orders.filter(o => activeStatuses.includes(o.status)).length,
     pending: orders.filter(o => o.status === 'pending').length,
-    confirmed: orders.filter(o => o.status === 'confirmed').length,
-    completed: orders.filter(o => o.status === 'completed').length,
+    preparing: orders.filter(o => ['confirmed','preparing'].includes(o.status)).length,
+    delivering: orders.filter(o => ['ready','delivering'].includes(o.status)).length,
+    done: orders.filter(o => ['delivered','completed'].includes(o.status)).length,
     cancelled: orders.filter(o => o.status === 'cancelled').length,
+    all: orders.length,
   }
 
+  const FILTER_TABS = [
+    { key: 'active',     label: '🔥 Активні',   count: counts.active },
+    { key: 'pending',    label: '⏳ Нові',        count: counts.pending },
+    { key: 'preparing',  label: '💐 Готуються',  count: counts.preparing },
+    { key: 'delivering', label: '🚚 Доставка',   count: counts.delivering },
+    { key: 'done',       label: '✅ Готово',      count: counts.done },
+    { key: 'cancelled',  label: '❌ Скасовані',  count: counts.cancelled },
+    { key: 'all',        label: 'Всі',            count: counts.all },
+  ]
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-bold transition-all ${
+          toast.type === 'success' ? 'bg-gray-900' : 'bg-red-600'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-gray-900">Замовлення</h1>
-          <p className="text-gray-500 mt-1">Керування та обробка замовлень клієнтів</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {counts.active > 0
+              ? `${counts.active} активних · оновлюється автоматично`
+              : 'Немає активних замовлень'}
+          </p>
         </div>
-        <button onClick={fetchOrders} className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+        <button onClick={fetchOrders}
+          className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors shadow-sm">
           🔄 Оновити
         </button>
       </div>
 
-      {message && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm">
-          ✅ {message}
-        </div>
-      )}
+      {/* Search */}
+      <div className="relative mb-4">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+        <input
+          type="text"
+          placeholder="Пошук за ім'ям або телефоном..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:border-pink-400 shadow-sm"
+        />
+      </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-        {[
-          { key: 'all', label: 'Всі' },
-          { key: 'pending', label: '⏳ Очікують' },
-          { key: 'confirmed', label: '✅ Підтверджені' },
-          { key: 'completed', label: '🎉 Виконані' },
-          { key: 'cancelled', label: '❌ Скасовані' },
-        ].map(({ key, label }) => (
+      <div className="flex gap-2 mb-5 overflow-x-auto pb-1 scrollbar-hide">
+        {FILTER_TABS.map(({ key, label, count }) => (
           <button key={key} onClick={() => setFilter(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors ${
+            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               filter === key
                 ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}>
-            {label} ({counts[key as keyof typeof counts]})
+            {label}
+            {count > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-black ${
+                filter === key ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-700'
+              }`}>{count}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Orders list */}
+      {/* Orders */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500"></div>
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
+      ) : filteredOrders.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm p-14 text-center border border-gray-100">
           <div className="text-5xl mb-4">📭</div>
-          <p className="text-gray-500 text-lg font-semibold">
-            {filter !== 'all' ? `Немає ${STATUS_LABELS[filter]?.toLowerCase()} замовлень` : 'Замовлень ще немає'}
+          <p className="text-gray-600 text-lg font-bold">Замовлень немає</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {search ? 'Спробуйте інший пошуковий запит' : 'Поділіться посиланням на магазин'}
           </p>
-          <p className="text-gray-400 text-sm mt-2">Поділіться посиланням на магазин щоб отримати перші замовлення</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(order => (
-            <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              {/* Order row */}
-              <div className="p-5 flex items-center gap-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${STATUS_COLORS[order.status] || STATUS_COLORS.pending}`}>
-                  {STATUS_LABELS[order.status] || order.status}
-                </span>
+          {filteredOrders.map(order => {
+            const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+            const isExpanded = expandedOrder === order.id
+            const isUpdating = updating === order.id
+            const nextStatuses = cfg.next.filter(s => s !== 'cancelled')
+            const canCancel = cfg.next.includes('cancelled')
+            const pipelineIdx = PIPELINE.indexOf(order.status)
 
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-gray-900">{order.customerName}</div>
-                  <div className="text-sm text-gray-500 flex items-center gap-3 mt-0.5">
-                    <span>📞 {order.phone}</span>
-                    {order.email && <span>✉️ {order.email}</span>}
+            return (
+              <div key={order.id}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-shadow hover:shadow-md">
+
+                {/* Status stripe */}
+                <div className="h-1 w-full" style={{ background: cfg.color }} />
+
+                {/* Order row */}
+                <div className="p-4 flex items-center gap-3 cursor-pointer"
+                  onClick={() => setExpandedOrder(isExpanded ? null : order.id)}>
+
+                  {/* Status badge */}
+                  <div className="flex-shrink-0">
+                    <span className="text-2xl">{cfg.icon}</span>
                   </div>
-                </div>
 
-                <div className="text-right hidden sm:block">
-                  {order.totalAmount > 0 && (
-                    <div className="font-black text-gray-900">₴{order.totalAmount}</div>
-                  )}
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {new Date(order.createdAt).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {/* Customer */}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-black text-gray-900 truncate">{order.customerName}</div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                        style={{ background: cfg.bg, color: cfg.color }}>
+                        {cfg.label}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {order.deliveryMethod === 'pickup' ? '🏪 Самовивіз' : order.deliveryMethod === 'delivery' ? '🚚 Доставка' : ''}
+                      </span>
+                      <span className="text-xs text-gray-400">{timeAgo(order.createdAt)}</span>
+                    </div>
                   </div>
-                </div>
 
-                <button onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                  className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">
-                  {expandedOrder === order.id ? '▲' : '▼'}
-                </button>
-              </div>
-
-              {/* Expanded details */}
-              {expandedOrder === order.id && (
-                <div className="border-t border-gray-100 p-5 bg-gray-50">
-                  <div className="grid sm:grid-cols-2 gap-4 mb-5">
-                    {order.message && (
-                      <div className="sm:col-span-2">
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Повідомлення клієнта</div>
-                        <div className="bg-white rounded-xl p-3 text-sm text-gray-700 border border-gray-200 leading-relaxed">{order.message}</div>
-                      </div>
-                    )}
-                    {order.deliveryMethod && (
-                      <div>
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Спосіб отримання</div>
-                        <div className="text-sm font-semibold text-gray-800">{order.deliveryMethod === 'delivery' ? '🚚 Доставка' : '🏪 Самовивіз'}</div>
-                      </div>
-                    )}
-                    {order.deliveryAddress && (
-                      <div>
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Адреса доставки</div>
-                        <div className="text-sm text-gray-800">{order.deliveryAddress}</div>
-                      </div>
-                    )}
-                    {order.scheduledDeliveryDate && (
-                      <div>
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Запланована дата</div>
-                        <div className="text-sm text-gray-800">{new Date(order.scheduledDeliveryDate).toLocaleDateString('uk-UA')}</div>
-                      </div>
-                    )}
+                  {/* Amount + time */}
+                  <div className="text-right flex-shrink-0">
                     {order.totalAmount > 0 && (
-                      <div>
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Сума замовлення</div>
-                        <div className="text-xl font-black text-gray-900">₴{order.totalAmount}</div>
-                      </div>
+                      <div className="font-black text-gray-900 text-base">₴{order.totalAmount}</div>
                     )}
+                    <div className="text-xs text-gray-400">{formatDate(order.createdAt)}</div>
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {order.status === 'pending' && (
-                      <>
-                        <button onClick={() => updateStatus(order.id, 'confirmed')}
-                          disabled={updating === order.id}
-                          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm">
-                          {updating === order.id ? '...' : '✅ Підтвердити'}
-                        </button>
-                        <button onClick={() => updateStatus(order.id, 'cancelled')}
-                          disabled={updating === order.id}
-                          className="bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 disabled:opacity-50 transition-colors">
-                          ❌ Скасувати
-                        </button>
-                      </>
-                    )}
-                    {order.status === 'confirmed' && (
-                      <>
-                        <button onClick={() => updateStatus(order.id, 'completed')}
-                          disabled={updating === order.id}
-                          className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm">
-                          {updating === order.id ? '...' : '🎉 Виконано'}
-                        </button>
-                        <button onClick={() => updateStatus(order.id, 'cancelled')}
-                          disabled={updating === order.id}
-                          className="bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 disabled:opacity-50 transition-colors">
-                          ❌ Скасувати
-                        </button>
-                      </>
-                    )}
-                    {(order.status === 'completed' || order.status === 'cancelled') && (
-                      <button onClick={() => updateStatus(order.id, 'pending')}
-                        disabled={updating === order.id}
-                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-300 disabled:opacity-50 transition-colors">
-                        ↩️ Відновити
-                      </button>
-                    )}
-                    <a href={`tel:${order.phone}`}
-                      className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
-                      📞 Зателефонувати
-                    </a>
-                    {order.phone && (
-                      <a href={`https://wa.me/${order.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                        className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-100 transition-colors">
-                        💬 WhatsApp
-                      </a>
-                    )}
-                  </div>
+                  <div className="text-gray-400 text-sm flex-shrink-0">{isExpanded ? '▲' : '▼'}</div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Expanded */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100">
+
+                    {/* Visual pipeline */}
+                    {order.status !== 'cancelled' && (
+                      <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
+                        <div className="flex items-center">
+                          {PIPELINE.map((s, i) => {
+                            const scfg = STATUS_CONFIG[s]
+                            const done = pipelineIdx > i
+                            const active = pipelineIdx === i
+                            return (
+                              <div key={s} className="flex items-center flex-1">
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
+                                    done ? 'text-white border-transparent' :
+                                    active ? 'text-white border-transparent ring-4' :
+                                    'bg-white border-gray-200 text-gray-300'
+                                  }`}
+                                    style={{
+                                      background: (done || active) ? cfg.color : undefined,
+                                      boxShadow: active ? `0 0 0 4px ${cfg.color}30` : undefined
+                                    }}>
+                                    {done ? '✓' : scfg.icon}
+                                  </div>
+                                  <span className={`text-xs mt-1 text-center leading-tight w-14 ${
+                                    active ? 'font-bold' : done ? 'text-gray-500' : 'text-gray-300'
+                                  }`} style={active ? { color: cfg.color } : {}}>
+                                    {scfg.label}
+                                  </span>
+                                </div>
+                                {i < PIPELINE.length - 1 && (
+                                  <div className="flex-1 h-0.5 mx-1 rounded-full mb-5"
+                                    style={{ background: pipelineIdx > i ? cfg.color : '#e5e7eb' }} />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Details */}
+                    <div className="p-5 grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Клієнт</div>
+                        <div className="text-sm font-semibold text-gray-900">{order.customerName}</div>
+                        <a href={`tel:${order.phone}`} className="text-sm text-blue-600 font-medium block mt-0.5 hover:underline">📞 {order.phone}</a>
+                        {order.email && <div className="text-xs text-gray-500 mt-0.5">✉️ {order.email}</div>}
+                      </div>
+
+                      {order.deliveryMethod && (
+                        <div>
+                          <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Отримання</div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {order.deliveryMethod === 'delivery' ? '🚚 Доставка' : '🏪 Самовивіз'}
+                          </div>
+                          {order.deliveryAddress && (
+                            <div className="text-xs text-gray-600 mt-0.5">📍 {order.deliveryAddress}</div>
+                          )}
+                        </div>
+                      )}
+
+                      {order.totalAmount > 0 && (
+                        <div>
+                          <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Сума</div>
+                          <div className="text-2xl font-black text-gray-900">₴{order.totalAmount}</div>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Час замовлення</div>
+                        <div className="text-sm text-gray-700">{formatDate(order.createdAt)}</div>
+                        <div className="text-xs text-gray-400">ID: #{order.id.slice(-8).toUpperCase()}</div>
+                      </div>
+
+                      {order.message && (
+                        <div className="sm:col-span-2">
+                          <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Деталі замовлення</div>
+                          <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700 border border-gray-200 whitespace-pre-line leading-relaxed">
+                            {order.message}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="px-5 pb-5 flex flex-wrap gap-2">
+
+                      {/* Primary: next logical status */}
+                      {nextStatuses.map(nextStatus => (
+                        <button key={nextStatus}
+                          onClick={() => updateStatus(order.id, nextStatus)}
+                          disabled={isUpdating}
+                          className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md disabled:opacity-50 transition-all active:scale-95 hover:brightness-95"
+                          style={{ background: STATUS_CONFIG[nextStatus]?.color || '#374151' }}>
+                          {isUpdating ? '⏳ ...' : (NEXT_LABEL[nextStatus] || `→ ${STATUS_CONFIG[nextStatus]?.label}`)}
+                        </button>
+                      ))}
+
+                      {/* Cancel */}
+                      {canCancel && (
+                        <button onClick={() => updateStatus(order.id, 'cancelled')}
+                          disabled={isUpdating}
+                          className="bg-red-50 text-red-700 border border-red-200 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-100 disabled:opacity-50 transition-colors active:scale-95">
+                          ❌ Скасувати
+                        </button>
+                      )}
+
+                      {/* Restore cancelled */}
+                      {order.status === 'cancelled' && (
+                        <button onClick={() => updateStatus(order.id, 'pending')}
+                          disabled={isUpdating}
+                          className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95">
+                          ↩️ Відновити
+                        </button>
+                      )}
+
+                      {/* Contact */}
+                      <a href={`tel:${order.phone}`}
+                        className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
+                        📞 Зателефонувати
+                      </a>
+                      {order.phone && (
+                        <a href={`https://wa.me/${order.phone.replace(/\D/g, '')}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="bg-green-50 border border-green-200 text-green-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-100 transition-colors">
+                          💬 WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
