@@ -6,6 +6,15 @@ import { PLANS, getPlanConfig } from '@/lib/plans'
 import { sendWelcomeEmail } from '@/lib/email/service'
 import { validatePassword, validateEmail, validateShopName } from '@/lib/validators'
 
+// ─── Detect card type from first digit ─────────────────────────────────────
+function detectCardType(cardNumber: string): string {
+  const first = cardNumber.replace(/\s/g, '')[0]
+  if (first === '4') return 'Visa'
+  if (first === '5') return 'Mastercard'
+  if (first === '3') return 'Amex'
+  return 'Card'
+}
+
 async function ensurePlans() {
   const existingPlans = await prisma.plan.findMany()
   if (existingPlans.length === 0) {
@@ -13,14 +22,14 @@ async function ensurePlans() {
       PLANS.map((plan) =>
         prisma.plan.create({
           data: {
-            name: plan.name,
-            slug: plan.slug,
-            description: plan.tagline,
-            price: plan.price,
-            durationDays: plan.durationDays,
-            maxBouquets: plan.maxBouquets,
+            name:               plan.name,
+            slug:               plan.slug,
+            description:        plan.tagline,
+            price:              plan.price,
+            durationDays:       plan.durationDays,
+            maxBouquets:        plan.maxBouquets,
             allowProfileDetails: plan.allowProfileDetails,
-            features: JSON.stringify(plan.features),
+            features:           JSON.stringify(plan.features),
           },
         })
       )
@@ -31,32 +40,35 @@ async function ensurePlans() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { shopName, email, password, planSlug, location, about, workingHours,
-            cardNumber, cardExpiry, cardCvc, cardHolderName } = body
+    const {
+      shopName, email, password, planSlug, location, about, workingHours,
+      // Card fields — used only to extract last4 + type, NEVER persisted in full
+      cardNumber, cardExpiry, cardCvc, cardHolderName,
+    } = body
 
-    // Validation
+    // ── Validation ────────────────────────────────────────────────────────────
     if (!shopName || shopName.trim().length === 0) {
       return NextResponse.json({ error: 'Shop name is required' }, { status: 400 })
     }
-    if (!email || !email.includes('@')) {
-      return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
-    }
-    const passwordValidation = validatePassword(password)
-    if (!passwordValidation.valid) {
-      return NextResponse.json({ error: passwordValidation.error }, { status: 400 })
-    }
+
     const emailValidation = validateEmail(email)
     if (!emailValidation.valid) {
       return NextResponse.json({ error: emailValidation.error }, { status: 400 })
     }
+
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
+      return NextResponse.json({ error: passwordValidation.error }, { status: 400 })
+    }
+
     const shopNameValidation = validateShopName(shopName)
     if (!shopNameValidation.valid) {
       return NextResponse.json({ error: shopNameValidation.error }, { status: 400 })
     }
 
-    // Check if email already exists
+    // Duplicate email check
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() }
+      where: { email: email.toLowerCase().trim() },
     })
     if (existingUser) {
       return NextResponse.json(
@@ -65,14 +77,9 @@ export async function POST(request: Request) {
       )
     }
 
-    const passwordHash = await bcrypt.hash(password, 10)
-
-    // Ensure all plans exist in DB
-    await ensurePlans()
-
     const selectedPlanConfig = getPlanConfig(planSlug)
 
-    // Validate payment info for paid plans
+    // Card fields required for paid plans
     if (selectedPlanConfig.price > 0) {
       if (!cardNumber || !cardExpiry || !cardCvc || !cardHolderName) {
         return NextResponse.json(
@@ -80,91 +87,75 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+      const rawNumber = cardNumber.replace(/\s/g, '')
+      if (rawNumber.length < 13 || rawNumber.length > 19) {
+        return NextResponse.json({ error: 'Invalid card number' }, { status: 400 })
+      }
     }
 
-    // Fetch plans from DB
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    await ensurePlans()
+
+    // Fetch plans
     const [selectedPlan, freePlan] = await Promise.all([
       prisma.plan.findUnique({ where: { slug: selectedPlanConfig.slug } }),
       prisma.plan.findUnique({ where: { slug: 'free' } }),
     ])
 
-    if (!selectedPlan) {
-      // Try to create it on the fly
-      const planData = PLANS.find(p => p.slug === selectedPlanConfig.slug)
-      if (!planData) {
-        return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 })
-      }
-      await prisma.plan.create({
-        data: {
-          name: planData.name,
-          slug: planData.slug,
-          description: planData.tagline,
-          price: planData.price,
-          durationDays: planData.durationDays,
-          maxBouquets: planData.maxBouquets,
-          allowProfileDetails: planData.allowProfileDetails,
-          features: JSON.stringify(planData.features),
-        },
-      })
+    if (!selectedPlan || !freePlan) {
+      return NextResponse.json(
+        { error: 'Failed to set up plans. Please try again.' },
+        { status: 500 }
+      )
     }
 
-    // Re-fetch after possible creation
-    const finalSelectedPlan = await prisma.plan.findUnique({ where: { slug: selectedPlanConfig.slug } })
-    const finalFreePlan = freePlan || await prisma.plan.findUnique({ where: { slug: 'free' } })
-
-    if (!finalSelectedPlan || !finalFreePlan) {
-      return NextResponse.json({ error: 'Failed to set up plans. Please try again.' }, { status: 500 })
-    }
-
-    // New shops always start on the free plan; paid plan activates after payment approval
-    const shopPlanId = finalFreePlan.id
-
+    // New shops always start on free; paid plan activates after manual approval
     const baseSlug = slugify(shopName)
-    const slug = await generateUniqueSlug(baseSlug)
+    const slug     = await generateUniqueSlug(baseSlug)
 
     const user = await prisma.user.create({
       data: {
-        email: email.toLowerCase().trim(),
+        email:        email.toLowerCase().trim(),
         passwordHash,
         shop: {
           create: {
-            name: shopName.trim(),
+            name:     shopName.trim(),
             slug,
-            planId: shopPlanId,
-            location: finalSelectedPlan.allowProfileDetails ? (location?.trim() || null) : null,
-            about: finalSelectedPlan.allowProfileDetails ? (about?.trim() || null) : null,
-            workingHours: finalSelectedPlan.allowProfileDetails ? (workingHours?.trim() || null) : null,
-          }
-        }
+            planId:   freePlan.id, // always start on free
+            location: location?.trim() || null,
+            about:    about?.trim() || null,
+            workingHours: workingHours?.trim() || null,
+          },
+        },
       },
-      include: { shop: true }
+      include: { shop: true },
     })
 
-    // If paid plan, create subscription + payment record
+    // If paid plan selected, create subscription + MINIMAL payment record
     if (selectedPlanConfig.price > 0 && user.shop) {
-      const cardLast4 = cardNumber.replace(/\s/g, '').slice(-4)
-      const firstDigit = cardNumber.replace(/\s/g, '')[0]
-      const cardType = firstDigit === '4' ? 'Visa' :
-                       firstDigit === '5' ? 'Mastercard' :
-                       firstDigit === '3' ? 'Amex' : 'Card'
+      const rawNumber = cardNumber.replace(/\s/g, '')
+      const last4     = rawNumber.slice(-4)
+      const cardType  = detectCardType(rawNumber)
 
       const subscription = await prisma.subscription.create({
         data: {
           shopId: user.shop.id,
-          planId: finalSelectedPlan.id,
+          planId: selectedPlan.id,
           status: 'pending',
-        }
+        },
       })
 
       await prisma.payment.create({
         data: {
           subscriptionId: subscription.id,
-          amount: selectedPlanConfig.price,
-          status: 'pending',
+          amount:         selectedPlanConfig.price,
+          status:         'pending',
           cardHolderName: cardHolderName.trim(),
-          cardLast4,
+          cardLast4:      last4,
           cardType,
-        }
+          // cardNumber, cardExpiry, cardCvc are intentionally NOT stored
+        },
       })
     }
 
@@ -178,9 +169,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: isPaid
-        ? 'Account created! Your payment is pending verification. You\'ll get an email once approved.'
-        : 'Account created successfully! You can now login.',
-      user: { id: user.id, email: user.email, shopSlug: user.shop?.slug }
+        ? 'Акаунт створено! Оплату буде перевірено протягом 24 год — після цього план активується.'
+        : 'Акаунт створено! Тепер можна увійти.',
+      user: { id: user.id, email: user.email, shopSlug: user.shop?.slug },
     })
   } catch (error: any) {
     console.error('Signup error:', error)

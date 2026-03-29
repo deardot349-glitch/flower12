@@ -28,17 +28,17 @@ model Plan {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  emailVerified Boolean  @default(false)
-  verificationToken String?
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  passwordHash            String
+  emailVerified           Boolean   @default(false)
+  verificationToken       String?
   verificationTokenExpiry DateTime?
-  resetToken String?
-  resetTokenExpiry DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
   shop Shop?
 
   @@index([email])
@@ -60,56 +60,56 @@ model Shop {
   @@index([planId])
 
   // Basic Information
-  about          String?
-  logoUrl        String?
-  coverImageUrl  String?
-  
+  about         String?
+  logoUrl       String?
+  coverImageUrl String?
+
   // Location Settings
-  location       String?
-  city           String?
-  country        String?
-  googleMapsUrl  String?
-  
+  location      String?
+  city          String?
+  country       String?
+  googleMapsUrl String?
+
   // Contact Information
-  email          String?
-  phoneNumber    String?
-  whatsappNumber String?
-  telegramHandle String?
+  email           String?
+  phoneNumber     String?
+  whatsappNumber  String?
+  telegramHandle  String?
   instagramHandle String?
-  
+
   // Working Hours (JSON: {monday: {open: "09:00", close: "18:00", closed: false}, ...})
-  workingHours   String?
-  timezone       String?  @default("UTC")
-  
+  workingHours String?
+  timezone     String? @default("UTC")
+
   // Delivery Settings
   sameDayDelivery      Boolean @default(true)
   deliveryTimeEstimate String?
   deliveryCutoffTime   String? @default("14:00")
   minimumOrderAmount   Float?  @default(0)
-  
+
   // Order Settings
   autoConfirmOrders    Boolean @default(false)
   requirePhoneVerify   Boolean @default(false)
   showDeliveryEstimate Boolean @default(true)
   allowSameDayOrders   Boolean @default(true)
-  
+
   // Localization
-  language       String  @default("en") // en | uk
-  currency       String  @default("USD")
-  
+  language String @default("uk")
+  currency String @default("UAH")
+
   // Appearance Settings
-  primaryColor   String? @default("#ec4899")
-  accentColor    String? @default("#a855f7")
+  primaryColor     String? @default("#ec4899")
+  accentColor      String? @default("#a855f7")
   enableAnimations Boolean @default(true)
-  layoutStyle    String? @default("classic")
+  layoutStyle      String? @default("classic")
 
   // Contact Visibility
-  showPhone        Boolean @default(true)
-  showEmail        Boolean @default(true)
-  showWhatsapp     Boolean @default(true)
-  showTelegram     Boolean @default(true)
-  showInstagram    Boolean @default(true)
-  showLocation     Boolean @default(true)
+  showPhone     Boolean @default(true)
+  showEmail     Boolean @default(true)
+  showWhatsapp  Boolean @default(true)
+  showTelegram  Boolean @default(true)
+  showInstagram Boolean @default(true)
+  showLocation  Boolean @default(true)
 
   // Custom Bouquet
   allowCustomBouquet Boolean @default(true)
@@ -118,12 +118,12 @@ model Shop {
   telegramChatId String?
 
   // Admin
-  suspended      Boolean  @default(false)
-  suspendedAt    DateTime?
+  suspended       Boolean   @default(false)
+  suspendedAt     DateTime?
   suspendedReason String?
 
-  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  plan            Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
+  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  plan            Plan             @relation(fields: [planId], references: [id], onDelete: Restrict)
   flowers         Flower[]
   orders          Order[]
   subscriptions   Subscription[]
@@ -146,7 +146,7 @@ model DeliveryZone {
   sortOrder         Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId, active])
@@ -154,81 +154,85 @@ model DeliveryZone {
 }
 
 model Subscription {
-  id              String   @id @default(cuid())
-  shopId          String
-  planId          String
-  status          String   @default("pending")
-  startDate       DateTime?
-  expiryDate      DateTime?
-  autoRenew       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  id         String    @id @default(cuid())
+  shopId     String
+  planId     String
+  status     String    @default("pending")
+  startDate  DateTime?
+  expiryDate DateTime?
+  autoRenew  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  shop    Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  plan    Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
   payment Payment?
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  subscriptionId String   @unique
+  id             String    @id @default(cuid())
+  subscriptionId String    @unique
+  // NOTE: Only last 4 digits + card type are stored. Full card number, expiry,
+  // and CVC are NEVER persisted. Process payments via a gateway (LiqPay/Stripe)
+  // before storing any additional billing data.
   cardLast4      String
   cardType       String?
   cardHolderName String
-  status         String   @default("pending")
+  status         String    @default("pending")
   amount         Float
   approvedAt     DateTime?
   approvedBy     String?
   notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 model Flower {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   shopId       String
   name         String
   price        Float
   imageUrl     String?
-  availability String   @default("in_stock")
+  availability String    @default("in_stock")
   description  String?
   madeAt       DateTime?
-  isCustom     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  isCustom     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  shop   Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([shopId, availability])
   @@index([createdAt])
 }
 
 model StockFlower {
-  id          String   @id @default(cuid())
-  shopId      String
-  name        String
-  color       String?
+  id           String   @id @default(cuid())
+  shopId       String
+  name         String
+  color        String?
   pricePerStem Float
-  stockCount  Int
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  stockCount   Int
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 }
 
 model WrappingOption {
-  id          String   @id @default(cuid())
-  shopId      String
-  name        String
-  price       Float
-  imageUrl    String?
-  available   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id        String   @id @default(cuid())
+  shopId    String
+  name      String
+  price     Float
+  imageUrl  String?
+  available Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 }
 
@@ -249,28 +253,33 @@ model CustomExtra {
 }
 
 model Order {
-  id                  String   @id @default(cuid())
-  shopId              String
-  customerName        String
-  phone               String
-  email               String?
-  message             String?
-  orderType           String   @default("inquiry")
-  deliveryMethod      String?
-  deliveryAddress     String?
-  deliveryZoneId      String?
-  deliveryFee         Float?   @default(0)
-  estimatedDelivery   String?
-  customBouquet       String?
-  totalAmount         Float?   @default(0)
-  status              String   @default("pending")
-  paymentStatus       String   @default("unpaid")
+  id                    String    @id @default(cuid())
+  shopId                String
+  // Optional FK to the ordered flower — allows analytics queries
+  flowerId              String?
+  customerName          String
+  phone                 String
+  email                 String?
+  message               String?
+  orderType             String    @default("inquiry")
+  deliveryMethod        String?
+  deliveryAddress       String?
+  deliveryZoneId        String?
+  deliveryFee           Float?    @default(0)
+  estimatedDelivery     String?
+  customBouquet         String?
+  totalAmount           Float?    @default(0)
+  status                String    @default("pending")
+  paymentStatus         String    @default("unpaid")
   scheduledDeliveryDate DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  shop   Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  // Set-null on flower delete so orders survive product removal
+  flower Flower? @relation(fields: [flowerId], references: [id], onDelete: SetNull)
 
   @@index([shopId, status])
+  @@index([flowerId])
   @@index([createdAt])
 }

@@ -2,13 +2,22 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendOrderNotificationToShop, sendOrderConfirmationToCustomer } from '@/lib/email/service'
 import { sendTelegramMessage, buildOrderMessage, buildOrderKeyboard } from '@/lib/telegram'
+import { getCurrencySymbol } from '@/lib/currency'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
-      shopSlug, shopId, customerName, phone, message,
-      flowerId, email, deliveryMethod, deliveryAddress, totalAmount: bodyTotalAmount
+      shopSlug,
+      shopId,
+      customerName,
+      phone,
+      message,
+      flowerId,
+      email,
+      deliveryMethod,
+      deliveryAddress,
+      totalAmount: bodyTotalAmount,
     } = body
 
     if (!customerName?.trim() || !phone?.trim()) {
@@ -18,85 +27,94 @@ export async function POST(request: Request) {
       )
     }
 
-    // Resolve shopId
+    // ── Resolve shop ────────────────────────────────────────────────────────
     let finalShopId = shopId
+    let shop: Awaited<ReturnType<typeof prisma.shop.findUnique>> | null = null
+
     if (shopSlug && !shopId) {
-      const shop = await prisma.shop.findUnique({ where: { slug: shopSlug } })
+      shop = await prisma.shop.findUnique({
+        where:   { slug: shopSlug },
+        include: { owner: true },
+      })
       if (!shop) return NextResponse.json({ error: 'Магазин не знайдено' }, { status: 404 })
       finalShopId = shop.id
-    }
-    if (!finalShopId) {
-      return NextResponse.json({ error: 'shopSlug або shopId обов\'язковий' }, { status: 400 })
+    } else if (finalShopId) {
+      shop = await prisma.shop.findUnique({
+        where:   { id: finalShopId },
+        include: { owner: true },
+      })
     }
 
-    // Load flower details
-    let flower = null
+    if (!finalShopId || !shop) {
+      return NextResponse.json(
+        { error: 'shopSlug або shopId обов\'язковий' },
+        { status: 400 }
+      )
+    }
+
+    // ── Flower details ──────────────────────────────────────────────────────
+    let flower: Awaited<ReturnType<typeof prisma.flower.findUnique>> | null = null
     if (flowerId) {
       flower = await prisma.flower.findUnique({ where: { id: flowerId } })
     }
 
-    // Build human-readable message
-    const currencyLine = flower ? `💐 Букет: ${flower.name}` : ''
+    // ── Build readable message ─────────────────────────────────────────────
     const deliveryLine = deliveryMethod === 'pickup' ? '🏪 Самовивіз' : '🚚 Доставка'
-    const addressLine = deliveryAddress
+    const currencyLine = flower ? `💐 Букет: ${flower.name}` : ''
+    const addressLine  = deliveryAddress
       ? `📍 ${[deliveryAddress.address, deliveryAddress.city, deliveryAddress.zipCode].filter(Boolean).join(', ')}`
       : ''
     const notesLine = message ? `💬 ${message}` : ''
 
-    const orderMessage = [
-      deliveryLine,
-      currencyLine,
-      addressLine,
-      notesLine,
-    ].filter(Boolean).join('\n')
+    const orderMessage = [deliveryLine, currencyLine, addressLine, notesLine]
+      .filter(Boolean)
+      .join('\n')
 
-    // Delivery address string for DB
+    // ── Delivery address string for DB ─────────────────────────────────────
     let deliveryAddressStr: string | null = null
     if (deliveryMethod === 'delivery' && deliveryAddress) {
-      deliveryAddressStr = [deliveryAddress.address, deliveryAddress.city, deliveryAddress.zipCode]
-        .filter(Boolean).join(', ')
+      deliveryAddressStr = [
+        deliveryAddress.address,
+        deliveryAddress.city,
+        deliveryAddress.zipCode,
+      ]
+        .filter(Boolean)
+        .join(', ')
     }
 
     const order = await prisma.order.create({
       data: {
-        shopId: finalShopId,
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        email: email?.trim() || null,
-        message: orderMessage || null,
-        orderType: 'inquiry',
-        deliveryMethod: deliveryMethod || null,
+        shopId:          finalShopId,
+        flowerId:        flower?.id ?? null,   // ← store the FK now
+        customerName:    customerName.trim(),
+        phone:           phone.trim(),
+        email:           email?.trim() || null,
+        message:         orderMessage || null,
+        orderType:       'inquiry',
+        deliveryMethod:  deliveryMethod || null,
         deliveryAddress: deliveryAddressStr,
-        totalAmount: bodyTotalAmount ?? flower?.price ?? 0,
-        status: 'pending',
+        totalAmount:     bodyTotalAmount ?? flower?.price ?? 0,
+        status:          'pending',
       },
     })
 
-    // Load shop for notifications
-    const shop = await prisma.shop.findUnique({
-      where: { id: finalShopId },
-      include: { owner: true },
-    })
-
-    // Email notifications — never crash the order if they fail
+    // ── Email notifications ────────────────────────────────────────────────
     try {
-      if (shop) {
-        await sendOrderNotificationToShop(shop.owner.email, shop.name, order, flower)
-      }
-      if (email && flower && shop) {
+      await sendOrderNotificationToShop(shop.owner.email, shop.name, order, flower)
+      if (email && flower) {
         await sendOrderConfirmationToCustomer(email, customerName, shop.name, flower)
       }
     } catch (emailErr) {
       console.error('Email notification failed:', emailErr)
     }
 
-    // Telegram notification — never crash the order if it fails
+    // ── Telegram notification ──────────────────────────────────────────────
     try {
-      if (shop && (shop as any).telegramChatId) {
-        const sym = shop.currency === 'UAH' ? '₴' : shop.currency === 'EUR' ? '€' : shop.currency === 'GBP' ? '£' : '$'
-        const text = buildOrderMessage(order, shop.name, flower, sym)
+      if (shop.telegramChatId) {
+        const sym      = getCurrencySymbol(shop.currency)
+        const text     = buildOrderMessage(order, shop.name, flower, sym)
         const keyboard = buildOrderKeyboard(order.id, 'pending')
-        await sendTelegramMessage((shop as any).telegramChatId, text, keyboard)
+        await sendTelegramMessage(shop.telegramChatId, text, keyboard)
       }
     } catch (tgErr) {
       console.error('Telegram notification failed:', tgErr)
