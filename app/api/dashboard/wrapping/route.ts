@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getPlanConfig } from '@/lib/plans'
 
 export async function GET() {
   try {
@@ -10,12 +11,24 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const shop = await prisma.shop.findUnique({
+      where: { id: session.user.shopId },
+      include: { plan: true },
+    })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+
+    const planConfig = getPlanConfig(shop.plan.slug)
+
+    if (!planConfig.allowWrappingOptions) {
+      return NextResponse.json({ options: [], planAllows: false })
+    }
+
     const options = await prisma.wrappingOption.findMany({
       where: { shopId: session.user.shopId },
-      orderBy: { price: 'asc' }
+      orderBy: { price: 'asc' },
     })
 
-    return NextResponse.json({ options })
+    return NextResponse.json({ options, planAllows: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
   }
@@ -28,6 +41,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const shop = await prisma.shop.findUnique({
+      where: { id: session.user.shopId },
+      include: { plan: true },
+    })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+
+    const planConfig = getPlanConfig(shop.plan.slug)
+    if (!planConfig.allowWrappingOptions) {
+      return NextResponse.json(
+        { error: `Варіанти обгортання недоступні на плані «${planConfig.name}». Перейдіть на Преміум.` },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { name, price, imageUrl } = body
 
@@ -36,8 +63,8 @@ export async function POST(request: Request) {
         shopId: session.user.shopId,
         name,
         price,
-        imageUrl: imageUrl || null
-      }
+        imageUrl: imageUrl || null,
+      },
     })
 
     return NextResponse.json({ success: true, option })
@@ -63,7 +90,7 @@ export async function PATCH(request: Request) {
 
     const updated = await prisma.wrappingOption.update({
       where: { id },
-      data: { available }
+      data: { available },
     })
 
     return NextResponse.json({ success: true, option: updated })

@@ -15,12 +15,12 @@ export default function SubscriptionPage() {
     cardNumber: '',
     cardExpiry: '',
     cardCvc: '',
-    cardHolderName: ''
+    cardHolderName: '',
   })
 
   useEffect(() => {
-    fetchSubscriptions()
     fetchCurrentPlan()
+    fetchSubscriptions()
   }, [])
 
   const fetchCurrentPlan = async () => {
@@ -56,14 +56,12 @@ export default function SubscriptionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess('')
+    setLoading(true); setError(''); setSuccess('')
     try {
       const response = await fetch('/api/subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planSlug: selectedPlan, ...formData })
+        body: JSON.stringify({ planSlug: selectedPlan, ...formData }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to submit payment')
@@ -81,8 +79,12 @@ export default function SubscriptionPage() {
   const paidPlans = PLANS.filter(p => p.price > 0)
   const selectedPlanConfig = PLANS.find(p => p.slug === selectedPlan)
 
+  const planEmoji: Record<string, string> = { free: '🌱', basic: '🌸', premium: '🌺' }
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+
+      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Підписка</h1>
         <p className="text-gray-500 mt-1">Оберіть план для вашого магазину</p>
@@ -91,12 +93,15 @@ export default function SubscriptionPage() {
       {/* Current plan badge */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8 flex items-center gap-4">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-2xl">
-          {currentPlanSlug === 'premium' ? '🌺' : currentPlanSlug === 'basic' ? '🌸' : '🌱'}
+          {planEmoji[currentPlanSlug] || '🌱'}
         </div>
         <div>
           <p className="text-sm text-gray-500">Поточний план</p>
           <p className="font-bold text-gray-900 text-lg">
             {PLANS.find(p => p.slug === currentPlanSlug)?.name || 'Безкоштовний'}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {PLANS.find(p => p.slug === currentPlanSlug)?.priceLabel}
           </p>
         </div>
         {subscriptions.find(s => s.status === 'pending') && (
@@ -109,95 +114,88 @@ export default function SubscriptionPage() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">{error}</div>}
       {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 text-sm">{success}</div>}
 
-      {/* Premium feature callout */}
+      {/* What you get callout */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-5 mb-8 flex items-start gap-4">
         <div className="text-3xl">🔥</div>
-        <div className="flex-1">
+        <div>
           <p className="font-black text-purple-900 mb-1">Кастомний конструктор букетів — лише на Преміум</p>
-          <p className="text-sm text-purple-700">На Преміум плані ваші клієнти можуть самостійно складати кастомні букети з ваших квітів, обирати упаковку та кастом речі (іграшки, вузлики, цукерки) — і бачити ціну в реальному часі.</p>
+          <p className="text-sm text-purple-700">
+            На Преміум плані клієнти складають кастомні букети самостійно — обирають квіти, упаковку і додатки (іграшки, вузлики, цукерки) і бачать ціну в реальному часі.
+            Це збільшує середній чек і кількість замовлень.
+          </p>
         </div>
-        {currentPlanSlug !== 'premium' && (
-          <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-bold whitespace-nowrap mt-1">Недоступно</span>
-        )}
       </div>
 
       {/* Plan cards */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {PLANS.map((plan) => {
+        {PLANS.map(plan => {
           const isCurrent = plan.slug === currentPlanSlug
           const isSelected = plan.slug === selectedPlan
 
           return (
             <div key={plan.slug}
-              className={`relative rounded-2xl border-2 p-6 transition-all cursor-pointer ${
-                isCurrent ? 'border-green-400 bg-green-50' :
-                isSelected ? 'border-pink-500 bg-pink-50 shadow-lg' :
-                plan.highlight ? 'border-purple-300 bg-white shadow-md' :
-                'border-gray-200 bg-white hover:border-gray-300'
-              }`}
               onClick={() => !isCurrent && plan.price > 0 && setSelectedPlan(plan.slug)}
-            >
-              {/* Badges */}
+              className={`relative rounded-2xl border-2 p-6 transition-all ${
+                isCurrent    ? 'border-green-400 bg-green-50 cursor-default' :
+                isSelected   ? 'border-pink-500 bg-pink-50 shadow-lg cursor-pointer' :
+                plan.highlight ? 'border-purple-300 bg-white shadow-md cursor-pointer hover:border-purple-400' :
+                plan.price > 0 ? 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer' :
+                'border-gray-200 bg-white cursor-default'
+              }`}>
+
               {plan.highlight && !isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold px-4 py-1 rounded-full">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
                   Популярний
                 </div>
               )}
               {isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-4 py-1 rounded-full">
-                  ✓ Активний
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap">
+                  ✓ Ваш план
                 </div>
               )}
 
-              <div className="text-3xl mb-3">
-                {plan.slug === 'free' ? '🌱' : plan.slug === 'basic' ? '🌸' : '🌺'}
-              </div>
-
+              <div className="text-3xl mb-3">{planEmoji[plan.slug]}</div>
               <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
-              <div className="text-2xl font-black text-gray-900 mb-1">
-                {plan.price === 0 ? 'Безкоштовно' : `${plan.price} грн`}
-              </div>
-              {plan.price > 0 && <p className="text-xs text-gray-400 mb-3">на місяць</p>}
+              <div className="text-2xl font-black text-gray-900 mb-0.5">{plan.priceLabel}</div>
+              {plan.price > 0 && (
+                <p className="text-xs text-gray-400 mb-3">
+                  або <span className="font-semibold">
+                    {plan.slug === 'basic' ? '8 100 грн / рік' : '18 000 грн / рік'}
+                  </span> (2 місяці безкоштовно)
+                </p>
+              )}
               <p className="text-sm text-gray-500 mb-4">{plan.tagline}</p>
 
-              {/* Features */}
               <ul className="space-y-2 mb-4">
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-                    {f}
+                    <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>{f}
                   </li>
                 ))}
               </ul>
 
-              {/* Limitations */}
               {plan.limitations.length > 0 && (
-                <ul className="space-y-1">
+                <ul className="space-y-1 mb-4">
                   {plan.limitations.map((l, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-gray-400">
-                      <span className="flex-shrink-0 mt-0.5">✗</span>
-                      {l}
+                      <span className="flex-shrink-0 mt-0.5">✗</span>{l}
                     </li>
                   ))}
                 </ul>
               )}
 
-              {/* Select button */}
               {!isCurrent && plan.price > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan(plan.slug)}
-                  className={`mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                <button type="button" onClick={() => setSelectedPlan(plan.slug)}
+                  className={`mt-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                     isSelected
                       ? 'bg-pink-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                  }`}>
                   {isSelected ? '✓ Обрано' : 'Обрати план'}
                 </button>
               )}
               {isCurrent && (
-                <div className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold text-center text-green-700 bg-green-100">
+                <div className="mt-2 w-full py-2.5 rounded-xl text-sm font-semibold text-center text-green-700 bg-green-100">
                   Ваш поточний план
                 </div>
               )}
@@ -253,7 +251,7 @@ export default function SubscriptionPage() {
 
             <div className="flex gap-3">
               <button type="submit" disabled={loading}
-                className="flex-1 bg-pink-600 text-white py-3 rounded-xl font-semibold hover:bg-pink-700 disabled:opacity-50 transition-colors">
+                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-md">
                 {loading ? 'Відправляємо...' : `Оплатити ${selectedPlanConfig.price} грн`}
               </button>
               <button type="button" onClick={() => setSelectedPlan('')}
@@ -270,7 +268,7 @@ export default function SubscriptionPage() {
         <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Історія підписок</h2>
           <div className="space-y-3">
-            {subscriptions.map((sub) => (
+            {subscriptions.map(sub => (
               <div key={sub.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div>
                   <p className="font-semibold text-gray-900">{sub.plan?.name}</p>
@@ -278,16 +276,13 @@ export default function SubscriptionPage() {
                 </div>
                 <div className="text-right">
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    sub.status === 'active' ? 'bg-green-100 text-green-700' :
-                    sub.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                    sub.status === 'active'   ? 'bg-green-100 text-green-700' :
+                    sub.status === 'pending'  ? 'bg-yellow-100 text-yellow-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
-                    {sub.status === 'active' ? '✓ Активна' :
-                     sub.status === 'pending' ? '⏳ Очікує' : sub.status}
+                    {sub.status === 'active' ? '✓ Активна' : sub.status === 'pending' ? '⏳ Очікує' : sub.status}
                   </span>
-                  {sub.payment && (
-                    <p className="text-xs text-gray-400 mt-1">{sub.payment.amount} грн</p>
-                  )}
+                  {sub.payment && <p className="text-xs text-gray-400 mt-1">{sub.payment.amount} грн</p>}
                 </div>
               </div>
             ))}

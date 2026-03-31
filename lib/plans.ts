@@ -7,23 +7,28 @@ export interface PlanConfig {
   priceLabel: string
   tagline: string
   durationDays: number
-  maxBouquets: number
-  allowProfileDetails: boolean
+  maxBouquets: number          // 999 = unlimited
+  // ── feature gates ──────────────────────────
+  allowProfileDetails: boolean // address, hours, phone on free page
   allowTelegram: boolean
   allowDeliveryZones: boolean
   allowAnalytics: boolean
   allowCustomColors: boolean
   allowCoverPhoto: boolean
+  allowLogoUpload: boolean
   allowStockManagement: boolean
   allowWrappingOptions: boolean
   allowCustomBouquet: boolean
+  allowCustomExtras: boolean
   allowRemoveBranding: boolean
+  // ── display ────────────────────────────────
   features: string[]
   limitations: string[]
   highlight?: boolean
 }
 
 export const PLANS: PlanConfig[] = [
+  // ─────────────────────────────────────────────────────────────── FREE ──────
   {
     slug: 'free',
     name: 'Безкоштовний',
@@ -31,107 +36,127 @@ export const PLANS: PlanConfig[] = [
     priceLabel: 'Безкоштовно',
     tagline: 'Спробуйте платформу без жодного ризику.',
     durationDays: 0,
-    maxBouquets: 5,
-    allowProfileDetails: false,
+    maxBouquets: 10,
+
+    // Free gets a complete-looking profile so the shop page doesn't look broken
+    allowProfileDetails: true,   // address, working hours, phone number visible
     allowTelegram: false,
     allowDeliveryZones: false,
     allowAnalytics: false,
     allowCustomColors: false,
     allowCoverPhoto: false,
+    allowLogoUpload: false,
     allowStockManagement: false,
     allowWrappingOptions: false,
     allowCustomBouquet: false,
-    allowRemoveBranding: false,
+    allowCustomExtras: false,
+    allowRemoveBranding: false,  // platform branding shown
+
     features: [
-      'До 5 букетів (ідеально для старту та тестування)',
-      'Публічна сторінка магазину — поділіться з першими клієнтами',
+      'До 10 букетів — достатньо щоб почати',
+      'Публічна сторінка магазину з адресою та годинами роботи',
       'Приймання замовлень через сайт',
       'Email сповіщення про нові замовлення',
     ],
     limitations: [
-      'Без кастомного конструктора букетів',
       'Без Telegram сповіщень',
       'Без зон доставки',
       'Без аналітики',
-      'Брендинг платформи на сторінці',
+      'Без кастомних кольорів і логотипу',
+      'Брендинг FlowerGoUa на сторінці',
     ],
   },
+
+  // ────────────────────────────────────────────────────────────── BASIC ──────
   {
     slug: 'basic',
     name: 'Базовий',
-    price: 800,
-    priceLabel: '800 грн / міс',
+    price: 900,
+    priceLabel: '900 грн / міс',
     tagline: 'Для магазинів що активно ростуть.',
     durationDays: 30,
-    maxBouquets: 30,
+    maxBouquets: 40,
+
     allowProfileDetails: true,
     allowTelegram: true,
     allowDeliveryZones: true,
-    allowAnalytics: false,
-    allowCustomColors: false,
-    allowCoverPhoto: false,
+    allowAnalytics: false,        // analytics is Premium only
+    allowCustomColors: false,     // branding customisation is Premium
+    allowCoverPhoto: true,        // cover photo: basic gets it
+    allowLogoUpload: false,       // logo upload: Premium only
     allowStockManagement: false,
     allowWrappingOptions: false,
     allowCustomBouquet: false,
+    allowCustomExtras: false,
     allowRemoveBranding: true,
+
     features: [
-      'До 30 букетів (ідеально для більшості магазинів)',
-      'Повний профіль — адреса, години роботи, контакти',
+      'До 40 букетів — вистачить для більшості магазинів',
+      'Повний профіль — адреса, години, контакти',
       'Telegram сповіщення з кнопками — не пропустіть жодне замовлення',
       'Зони доставки з вартістю — клієнти бачать ціну одразу',
+      'Фото обкладинки — красивий перший екран',
       'Посилання на WhatsApp та Instagram',
-      'Без логотипу платформи — магазин виглядає вашим',
-      'Базова статистика замовлень',
+      'Без логотипу FlowerGoUa на сторінці',
     ],
     limitations: [
+      'Без кастомних кольорів та логотипу магазину',
       'Без кастомного конструктора букетів',
-      'Без детальної аналітики',
-      'Без кастомних кольорів',
+      'Без аналітики та трендів',
     ],
     highlight: true,
   },
+
+  // ─────────────────────────────────────────────────────────────── PREMIUM ──
   {
     slug: 'premium',
     name: 'Преміум',
-    price: 1500,
-    priceLabel: '1500 грн / міс',
+    price: 2000,
+    priceLabel: '2000 грн / міс',
     tagline: 'Повний контроль для серйозного бізнесу.',
     durationDays: 30,
-    maxBouquets: 100,
+    maxBouquets: 999,             // unlimited
+
     allowProfileDetails: true,
     allowTelegram: true,
     allowDeliveryZones: true,
     allowAnalytics: true,
     allowCustomColors: true,
     allowCoverPhoto: true,
+    allowLogoUpload: true,
     allowStockManagement: true,
     allowWrappingOptions: true,
     allowCustomBouquet: true,
+    allowCustomExtras: true,
     allowRemoveBranding: true,
+
     features: [
-      'До 100 букетів — повний каталог без обмежень',
+      'Необмежена кількість букетів',
       'Все з Базового плану',
       '🔥 Кастомний конструктор букетів — клієнт збирає сам',
       '🔥 Кастом речі — іграшки, вузлики, цукерки тощо',
+      '🔥 Управління запасами квітів',
+      '🔥 Варіанти обгортання для кастому',
       'Детальна аналітика — доходи, популярні букети, тренди',
       'Власні кольори та логотип — повністю ваш бренд',
-      'Фото обкладинки — перше враження, що продає',
-      'Управління запасами — клієнти бачать наявність',
-      'Варіанти обгортання — більше вибору = більший чек',
       'Пріоритетна підтримка — відповідаємо першочергово',
     ],
     limitations: [],
   },
 ]
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 export function getPlanConfig(slug: string | null | undefined): PlanConfig {
   const fallback = PLANS[0]
   if (!slug) return fallback
-  const match = PLANS.find((p) => p.slug === slug)
-  return match ?? fallback
+  return PLANS.find((p) => p.slug === slug) ?? fallback
 }
 
-export function planAllows(planSlug: string | null | undefined, feature: keyof PlanConfig): boolean {
+export function planAllows(
+  planSlug: string | null | undefined,
+  feature: keyof PlanConfig
+): boolean {
   const plan = getPlanConfig(planSlug)
   return !!plan[feature]
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getPlanConfig } from '@/lib/plans'
 
 export async function GET(request: Request) {
   try {
@@ -37,11 +38,34 @@ export async function PUT(request: Request) {
 
     const shop = await prisma.shop.findUnique({
       where: { id: session.user.shopId },
+      include: { plan: true },
     })
 
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
     }
+
+    const planConfig = getPlanConfig(shop.plan.slug)
+
+    // ── Enforce feature gates ──────────────────────────────────────────────────
+
+    // Cover photo: free plan cannot set a cover photo
+    const coverImageUrl = planConfig.allowCoverPhoto
+      ? (body.coverImageUrl ?? null)
+      : null  // silently strip it so the DB stays clean
+
+    // Logo: only premium can upload a logo
+    const logoUrl = planConfig.allowLogoUpload
+      ? (body.logoUrl ?? null)
+      : null
+
+    // Custom colours: only premium
+    const primaryColor = planConfig.allowCustomColors
+      ? (body.primaryColor || '#ec4899')
+      : '#ec4899'
+    const accentColor = planConfig.allowCustomColors
+      ? (body.accentColor || '#a855f7')
+      : '#a855f7'
 
     const updated = await prisma.shop.update({
       where: { id: shop.id },
@@ -49,18 +73,19 @@ export async function PUT(request: Request) {
         // General
         name: body.name?.trim() || shop.name,
         about: body.about?.trim() || null,
-        language: body.language || 'en',
-        currency: body.currency || 'USD',
-        timezone: body.timezone || 'UTC',
+        language: body.language || 'uk',
+        currency: body.currency || 'UAH',
+        timezone: body.timezone || 'Europe/Kyiv',
 
-        // Appearance
-        coverImageUrl: body.coverImageUrl || null,
-        logoUrl: body.logoUrl || null,
-        primaryColor: body.primaryColor || '#ec4899',
-        accentColor: body.accentColor || '#a855f7',
+        // Appearance (plan-gated above)
+        coverImageUrl,
+        logoUrl,
+        primaryColor,
+        accentColor,
         enableAnimations: body.enableAnimations ?? true,
+        ...(body.layoutStyle !== undefined ? { layoutStyle: body.layoutStyle || 'classic' } : {}),
 
-        // Location & Contact
+        // Location & Contact (allowed on all plans — free gets a proper-looking page)
         location: body.location?.trim() || null,
         city: body.city?.trim() || null,
         country: body.country?.trim() || null,
@@ -92,11 +117,10 @@ export async function PUT(request: Request) {
         showInstagram: body.showInstagram ?? true,
         showLocation: body.showLocation ?? true,
 
-        // Custom bouquet
-        allowCustomBouquet: body.allowCustomBouquet ?? true,
-
-        // Layout
-        ...(body.layoutStyle !== undefined ? { layoutStyle: body.layoutStyle || 'classic' } : {}),
+        // Custom bouquet toggle (only premium can enable it)
+        allowCustomBouquet: planConfig.allowCustomBouquet
+          ? (body.allowCustomBouquet ?? true)
+          : false,
       },
     })
 
@@ -123,13 +147,6 @@ export async function PATCH(request: Request) {
 
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
-    }
-
-    if (!shop.plan.allowProfileDetails) {
-      return NextResponse.json(
-        { error: 'Your current plan does not allow editing full profile details. Upgrade to enable this.' },
-        { status: 403 }
-      )
     }
 
     const updated = await prisma.shop.update({

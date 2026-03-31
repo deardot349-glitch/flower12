@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
+import { getPlanConfig } from '@/lib/plans'
 
 type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'telegram'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS: Record<string, string> = {
   monday: 'Понеділок', tuesday: 'Вівторок', wednesday: 'Середа',
-  thursday: 'Четвер', friday: "П'ятниця", saturday: 'Субота', sunday: 'Неділя'
+  thursday: 'Четвер', friday: "П'ятниця", saturday: 'Субота', sunday: 'Неділя',
 }
 
 type DayHours = { open: string; close: string; closed: boolean }
@@ -19,79 +21,61 @@ const defaultHours: WeeklyHours = Object.fromEntries(
   DAYS.map(d => [d, { ...defaultDayHours, closed: d === 'sunday' }])
 )
 
-const LAYOUT_PRESETS = [
-  {
-    id: 'classic',
-    name: 'Класичний',
-    icon: '🏪',
-    desc: 'Сітка карток з тінями',
-    preview: [
-      { w: '60%', h: 8, r: 6, c: '#f3f4f6' },
-      { w: '100%', h: 36, r: 12, c: '#e5e7eb', cols: 3 },
-    ],
-  },
-  {
-    id: 'modern',
-    name: 'Сучасний',
-    icon: '✨',
-    desc: 'Великі фото, мінімум тексту',
-    preview: [
-      { w: '50%', h: 8, r: 6, c: '#f3f4f6' },
-      { w: '100%', h: 48, r: 16, c: '#e5e7eb', cols: 2 },
-    ],
-  },
-  {
-    id: 'list',
-    name: 'Список',
-    icon: '📋',
-    desc: 'Рядки з ціною та кнопкою',
-    preview: [
-      { w: '40%', h: 8, r: 6, c: '#f3f4f6' },
-      { w: '100%', h: 16, r: 8, c: '#e5e7eb', cols: 1, repeat: 3 },
-    ],
-  },
-  {
-    id: 'bold',
-    name: 'Жирний',
-    icon: '🔥',
-    desc: 'Великі плитки на весь екран',
-    preview: [
-      { w: '55%', h: 10, r: 6, c: '#f3f4f6' },
-      { w: '100%', h: 56, r: 12, c: '#e5e7eb', cols: 1 },
-    ],
-  },
-]
-
 const COLOR_THEMES = [
-  { name: 'Рожевий',      primary: '#ec4899', accent: '#a855f7' },
-  { name: 'Червоний',     primary: '#ef4444', accent: '#f97316' },
-  { name: 'Помаранч.',    primary: '#f97316', accent: '#eab308' },
-  { name: 'Жовтий',      primary: '#eab308', accent: '#84cc16' },
-  { name: 'Зелений',     primary: '#22c55e', accent: '#10b981' },
-  { name: 'Бірюзовий',   primary: '#14b8a6', accent: '#06b6d4' },
-  { name: 'Синій',       primary: '#3b82f6', accent: '#6366f1' },
-  { name: 'Фіолетовий',  primary: '#8b5cf6', accent: '#ec4899' },
-  { name: 'Коричневий',  primary: '#92400e', accent: '#d97706' },
-  { name: 'Чорний',      primary: '#1f2937', accent: '#4b5563' },
-  { name: 'Золотий',     primary: '#b45309', accent: '#d97706' },
-  { name: 'Лавандовий',  primary: '#7c3aed', accent: '#c084fc' },
+  { name: 'Рожевий',     primary: '#ec4899', accent: '#a855f7' },
+  { name: 'Червоний',    primary: '#ef4444', accent: '#f97316' },
+  { name: 'Помаранч.',   primary: '#f97316', accent: '#eab308' },
+  { name: 'Жовтий',     primary: '#eab308', accent: '#84cc16' },
+  { name: 'Зелений',    primary: '#22c55e', accent: '#10b981' },
+  { name: 'Бірюзовий',  primary: '#14b8a6', accent: '#06b6d4' },
+  { name: 'Синій',      primary: '#3b82f6', accent: '#6366f1' },
+  { name: 'Фіолетовий', primary: '#8b5cf6', accent: '#ec4899' },
+  { name: 'Коричневий', primary: '#92400e', accent: '#d97706' },
+  { name: 'Чорний',     primary: '#1f2937', accent: '#4b5563' },
+  { name: 'Золотий',    primary: '#b45309', accent: '#d97706' },
+  { name: 'Лавандовий', primary: '#7c3aed', accent: '#c084fc' },
 ]
 
 const CONTACT_FIELDS = [
-  { key: 'phoneNumber',     showKey: 'showPhone',     icon: '📞', label: 'Телефон',  type: 'tel',   prefix: null, placeholder: '+380 99 123 4567' },
-  { key: 'email',           showKey: 'showEmail',     icon: '✉️',  label: 'Email',    type: 'email', prefix: null, placeholder: 'hello@shop.com' },
-  { key: 'whatsappNumber',  showKey: 'showWhatsapp',  icon: '💬', label: 'WhatsApp', type: 'tel',   prefix: null, placeholder: '+380991234567' },
-  { key: 'telegramHandle',  showKey: 'showTelegram',  icon: '✈️',  label: 'Telegram', type: 'text',  prefix: '@',  placeholder: 'yourshop' },
-  { key: 'instagramHandle', showKey: 'showInstagram', icon: '📸', label: 'Instagram',type: 'text',  prefix: '@',  placeholder: 'yourshop' },
+  { key: 'phoneNumber',     showKey: 'showPhone',     icon: '📞', label: 'Телефон',   type: 'tel',   prefix: null, placeholder: '+380 99 123 4567' },
+  { key: 'email',           showKey: 'showEmail',     icon: '✉️',  label: 'Email',     type: 'email', prefix: null, placeholder: 'hello@shop.com' },
+  { key: 'whatsappNumber',  showKey: 'showWhatsapp',  icon: '💬', label: 'WhatsApp',  type: 'tel',   prefix: null, placeholder: '+380991234567' },
+  { key: 'telegramHandle',  showKey: 'showTelegram',  icon: '✈️',  label: 'Telegram',  type: 'text',  prefix: '@',  placeholder: 'yourshop' },
+  { key: 'instagramHandle', showKey: 'showInstagram', icon: '📸', label: 'Instagram', type: 'text',  prefix: '@',  placeholder: 'yourshop' },
 ] as const
+
+const inputCls = 'w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all'
+
+// ── Small reusable lock banner ────────────────────────────────────────────────
+function PlanLockBanner({ feature, requiredPlan }: { feature: string; requiredPlan: 'basic' | 'premium' }) {
+  const label = requiredPlan === 'basic' ? 'Базовий або Преміум' : 'Преміум'
+  const price  = requiredPlan === 'basic' ? '900 грн/міс' : '2000 грн/міс'
+  const planSlugLink = requiredPlan === 'basic' ? 'basic' : 'premium'
+  return (
+    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+      <span className="text-2xl">🔒</span>
+      <div className="flex-1">
+        <p className="text-sm font-bold text-amber-900">{feature} — план «{label}»</p>
+        <p className="text-xs text-amber-700 mt-0.5 mb-2">Перейдіть на платний план щоб розблокувати цю функцію.</p>
+        <Link href="/dashboard/subscription"
+          className="inline-flex items-center gap-1 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors">
+          Перейти на {label} — {price}
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general')
+  const [planSlug, setPlanSlug] = useState<string>('free')
+
   const [telegramChatId, setTelegramChatId] = useState('')
   const [telegramConnected, setTelegramConnected] = useState(false)
   const [telegramLoading, setTelegramLoading] = useState(false)
   const [telegramMsg, setTelegramMsg] = useState('')
   const [telegramError, setTelegramError] = useState('')
+
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState<'cover' | 'logo' | null>(null)
   const [error, setError] = useState('')
@@ -100,29 +84,29 @@ export default function SettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null)
 
   const [shopData, setShopData] = useState({
-    // General
     name: '', about: '', language: 'uk', currency: 'UAH', timezone: 'Europe/Kyiv',
-    // Appearance
     coverImageUrl: '', logoUrl: '',
     primaryColor: '#ec4899', accentColor: '#a855f7', enableAnimations: true, layoutStyle: 'classic',
-    // Location
     location: '', city: '', country: '', googleMapsUrl: '',
-    // Contacts
     email: '', phoneNumber: '', whatsappNumber: '', telegramHandle: '', instagramHandle: '',
-    // Contact visibility toggles
     showPhone: true, showEmail: true, showWhatsapp: true,
     showTelegram: true, showInstagram: true, showLocation: true,
-    // Delivery
     sameDayDelivery: true, deliveryTimeEstimate: '', deliveryCutoffTime: '14:00',
     minimumOrderAmount: 0, autoConfirmOrders: false, requirePhoneVerify: false,
     showDeliveryEstimate: true, allowSameDayOrders: true,
-    // Custom bouquet
     allowCustomBouquet: true,
   })
 
   const [weeklyHours, setWeeklyHours] = useState<WeeklyHours>(defaultHours)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+
+  // Derived plan permissions
+  const plan = getPlanConfig(planSlug)
+  const canCoverPhoto   = plan.allowCoverPhoto
+  const canLogoUpload   = plan.allowLogoUpload
+  const canCustomColors = plan.allowCustomColors
+  const canTelegram     = plan.allowTelegram
 
   useEffect(() => { fetchShopData() }, [])
 
@@ -132,6 +116,7 @@ export default function SettingsPage() {
       const data = await res.json()
       if (data.shop) {
         const s = data.shop
+        setPlanSlug(s.plan?.slug || 'free')
         setShopData({
           name: s.name || '', about: s.about || '',
           language: s.language || 'uk', currency: s.currency || 'UAH', timezone: s.timezone || 'Europe/Kyiv',
@@ -207,12 +192,12 @@ export default function SettingsPage() {
   const set = (key: string, value: any) => setShopData(p => ({ ...p, [key]: value }))
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'general',       label: 'Загальне',       icon: '🏪' },
-    { id: 'appearance',    label: 'Дизайн',          icon: '🎨' },
-    { id: 'contact',       label: 'Контакти',        icon: '📞' },
-    { id: 'hours',         label: 'Години роботи',   icon: '🕐' },
-    { id: 'delivery',      label: 'Доставка',        icon: '🚚' },
-    { id: 'telegram',      label: 'Telegram',        icon: '✈️' },
+    { id: 'general',    label: 'Загальне',     icon: '🏪' },
+    { id: 'appearance', label: 'Дизайн',        icon: '🎨' },
+    { id: 'contact',    label: 'Контакти',      icon: '📞' },
+    { id: 'hours',      label: 'Години роботи', icon: '🕐' },
+    { id: 'delivery',   label: 'Доставка',      icon: '🚚' },
+    { id: 'telegram',   label: 'Telegram',      icon: '✈️' },
   ]
 
   return (
@@ -246,6 +231,9 @@ export default function SettingsPage() {
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}>
                   <span>{tab.icon}</span>{tab.label}
+                  {tab.id === 'telegram' && !canTelegram && (
+                    <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">PRO</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -256,7 +244,7 @@ export default function SettingsPage() {
             <form onSubmit={handleSubmit}>
               <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
 
-                {/* ══════════ GENERAL ══════════ */}
+                {/* ══ GENERAL ══ */}
                 {activeTab === 'general' && (
                   <>
                     <SectionTitle icon="🏪" title="Загальна інформація" subtitle="Основні дані магазину для клієнтів" />
@@ -268,7 +256,7 @@ export default function SettingsPage() {
                       <textarea rows={5} value={shopData.about} onChange={e => set('about', e.target.value)}
                         className={inputCls} placeholder="Ми створюємо букети з любов'ю..." />
                     </Field>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Field label="Мова">
                         <select value={shopData.language} onChange={e => set('language', e.target.value)} className={inputCls}>
                           <option value="uk">🇺🇦 Українська</option>
@@ -286,103 +274,114 @@ export default function SettingsPage() {
                           <option value="PLN">🇵🇱 PLN – Злотий</option>
                         </select>
                       </Field>
-
                     </div>
                   </>
                 )}
 
-                {/* ══════════ APPEARANCE ══════════ */}
+                {/* ══ APPEARANCE ══ */}
                 {activeTab === 'appearance' && (
                   <>
                     <SectionTitle icon="🎨" title="Зовнішній вигляд" subtitle="Налаштуйте дизайн вашої публічної сторінки" />
 
-                    {/* Cover Image */}
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 mb-1">Фото обкладинки</p>
-                      <p className="text-xs text-gray-400 mb-3">Рекомендовано: 1920×600px, до 5MB</p>
-                      {coverPreview ? (
-                        <div className="relative h-48 rounded-2xl overflow-hidden border border-gray-200 group">
-                          <Image src={coverPreview} alt="Cover" fill className="object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                            <button type="button" onClick={() => coverInputRef.current?.click()}
-                              className="bg-white text-gray-800 px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-gray-100">
-                              🔄 Змінити
-                            </button>
-                            <button type="button" onClick={() => { setCoverPreview(null); set('coverImageUrl', '') }}
-                              className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-red-600">
-                              🗑 Видалити
-                            </button>
+                    {/* Cover photo — Basic + Premium */}
+                    {canCoverPhoto ? (
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700 mb-1">Фото обкладинки</p>
+                        <p className="text-xs text-gray-400 mb-3">Рекомендовано: 1920×600px, до 5MB</p>
+                        {coverPreview ? (
+                          <div className="relative h-48 rounded-2xl overflow-hidden border border-gray-200 group">
+                            <Image src={coverPreview} alt="Cover" fill className="object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                              <button type="button" onClick={() => coverInputRef.current?.click()}
+                                className="bg-white text-gray-800 px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-gray-100">
+                                🔄 Змінити
+                              </button>
+                              <button type="button" onClick={() => { setCoverPreview(null); set('coverImageUrl', '') }}
+                                className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-red-600">
+                                🗑 Видалити
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div onClick={() => uploading !== 'cover' && coverInputRef.current?.click()}
-                          className="border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center hover:border-pink-400 hover:bg-pink-50/50 transition-all cursor-pointer select-none">
-                          {uploading === 'cover' ? (
-                            <div className="flex flex-col items-center gap-3">
-                              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500" />
-                              <p className="text-sm text-gray-500 font-medium">Завантажуємо...</p>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-2 pointer-events-none">
-                              <div className="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center text-3xl mb-1">🖼️</div>
-                              <p className="text-sm font-semibold text-gray-700">Натисніть щоб завантажити фото обкладинки</p>
-                              <p className="text-xs text-gray-400">PNG, JPG, WebP — до 5MB</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
-                        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cover'); e.target.value = '' }} />
-                    </div>
-
-                    {/* Logo */}
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 mb-1">Логотип магазину</p>
-                      <p className="text-xs text-gray-400 mb-3">Квадратне зображення, мін. 200×200px</p>
-                      <div className="flex items-center gap-5">
-                        <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-gray-200 flex-shrink-0 bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-                          {logoPreview
-                            ? <Image src={logoPreview} alt="Logo" width={96} height={96} className="object-cover w-full h-full" />
-                            : <span className="text-3xl font-bold text-pink-400">{shopData.name.charAt(0) || '🌸'}</span>
-                          }
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <button type="button" onClick={() => logoInputRef.current?.click()}
-                            className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold transition-colors">
-                            {uploading === 'logo' ? '⏳ Завантаження...' : '📁 Завантажити логотип'}
-                          </button>
-                          {logoPreview && (
-                            <button type="button" onClick={() => { setLogoPreview(null); set('logoUrl', '') }}
-                              className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-semibold transition-colors">
-                              🗑 Видалити
-                            </button>
-                          )}
-                        </div>
-                        <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
-                          onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'logo'); e.target.value = '' }} />
+                        ) : (
+                          <div onClick={() => uploading !== 'cover' && coverInputRef.current?.click()}
+                            className="border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center hover:border-pink-400 hover:bg-pink-50/50 transition-all cursor-pointer select-none">
+                            {uploading === 'cover' ? (
+                              <div className="flex flex-col items-center gap-3">
+                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500" />
+                                <p className="text-sm text-gray-500 font-medium">Завантажуємо...</p>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2 pointer-events-none">
+                                <div className="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center text-3xl mb-1">🖼️</div>
+                                <p className="text-sm font-semibold text-gray-700">Натисніть щоб завантажити фото обкладинки</p>
+                                <p className="text-xs text-gray-400">PNG, JPG, WebP — до 5MB</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cover'); e.target.value = '' }} />
                       </div>
-                    </div>
+                    ) : (
+                      <PlanLockBanner feature="Фото обкладинки" requiredPlan="basic" />
+                    )}
 
-                    <ColorThemePicker
-                      primaryColor={shopData.primaryColor} accentColor={shopData.accentColor} shopName={shopData.name}
-                      onChangePrimary={v => set('primaryColor', v)} onChangeAccent={v => set('accentColor', v)}
-                    />
+                    {/* Logo — Premium only */}
+                    {canLogoUpload ? (
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700 mb-1">Логотип магазину</p>
+                        <p className="text-xs text-gray-400 mb-3">Квадратне зображення, мін. 200×200px</p>
+                        <div className="flex items-center gap-5">
+                          <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-gray-200 flex-shrink-0 bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+                            {logoPreview
+                              ? <Image src={logoPreview} alt="Logo" width={96} height={96} className="object-cover w-full h-full" />
+                              : <span className="text-3xl font-bold text-pink-400">{shopData.name.charAt(0) || '🌸'}</span>
+                            }
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button type="button" onClick={() => logoInputRef.current?.click()}
+                              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold transition-colors">
+                              {uploading === 'logo' ? '⏳ Завантаження...' : '📁 Завантажити логотип'}
+                            </button>
+                            {logoPreview && (
+                              <button type="button" onClick={() => { setLogoPreview(null); set('logoUrl', '') }}
+                                className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-semibold transition-colors">
+                                🗑 Видалити
+                              </button>
+                            )}
+                          </div>
+                          <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
+                            onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'logo'); e.target.value = '' }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <PlanLockBanner feature="Власний логотип магазину" requiredPlan="premium" />
+                    )}
+
+                    {/* Custom colors — Premium only */}
+                    {canCustomColors ? (
+                      <ColorThemePicker
+                        primaryColor={shopData.primaryColor}
+                        accentColor={shopData.accentColor}
+                        shopName={shopData.name}
+                        onChangePrimary={v => set('primaryColor', v)}
+                        onChangeAccent={v => set('accentColor', v)}
+                      />
+                    ) : (
+                      <PlanLockBanner feature="Кастомні кольори та тема бренду" requiredPlan="premium" />
+                    )}
+
                     <Toggle label="Увімкнути анімації" hint="Плавні ефекти при наведенні та переходи"
                       checked={shopData.enableAnimations} onChange={v => set('enableAnimations', v)} />
                   </>
                 )}
 
-                {/* ══════════ CONTACT ══════════ */}
+                {/* ══ CONTACT ══ */}
                 {activeTab === 'contact' && (
                   <>
                     <SectionTitle icon="📞" title="Контакти" subtitle="Вмикайте перемикач щоб показати контакт на сторінці магазину" />
-
-                    {/* Location card */}
-                    <ContactCard
-                      icon="📍" label="Адреса" isVisible={shopData.showLocation}
-                      onToggle={v => set('showLocation', v)}
-                      hasValue={!!(shopData.location || shopData.city)}
-                    >
+                    <ContactCard icon="📍" label="Адреса" isVisible={shopData.showLocation}
+                      onToggle={v => set('showLocation', v)} hasValue={!!(shopData.location || shopData.city)}>
                       <div className="space-y-2">
                         <input type="text" value={shopData.location} onChange={e => set('location', e.target.value)}
                           disabled={!shopData.showLocation}
@@ -405,7 +404,6 @@ export default function SettingsPage() {
                       </div>
                     </ContactCard>
 
-                    {/* Dynamic contact rows */}
                     {CONTACT_FIELDS.map(({ key, showKey, icon, label, type, prefix, placeholder }) => {
                       const isVisible = (shopData as any)[showKey] as boolean
                       const value = (shopData as any)[key] as string
@@ -418,12 +416,9 @@ export default function SettingsPage() {
                                 {prefix}
                               </span>
                             )}
-                            <input type={type} value={value}
-                              onChange={e => set(key, e.target.value)}
-                              disabled={!isVisible}
-                              placeholder={placeholder}
-                              className={`${inputCls} ${prefix ? 'pl-8' : ''} ${!isVisible ? 'opacity-40 cursor-not-allowed' : ''}`}
-                            />
+                            <input type={type} value={value} onChange={e => set(key, e.target.value)}
+                              disabled={!isVisible} placeholder={placeholder}
+                              className={`${inputCls} ${prefix ? 'pl-8' : ''} ${!isVisible ? 'opacity-40 cursor-not-allowed' : ''}`} />
                           </div>
                         </ContactCard>
                       )
@@ -431,7 +426,7 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                {/* ══════════ HOURS ══════════ */}
+                {/* ══ HOURS ══ */}
                 {activeTab === 'hours' && (
                   <>
                     <SectionTitle icon="🕐" title="Години роботи" subtitle="Розклад на кожен день тижня" />
@@ -489,7 +484,7 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                {/* ══════════ DELIVERY ══════════ */}
+                {/* ══ DELIVERY ══ */}
                 {activeTab === 'delivery' && (
                   <>
                     <SectionTitle icon="🚚" title="Налаштування доставки" subtitle="Як ви доставляєте замовлення клієнтам" />
@@ -527,78 +522,86 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                {/* ══════════ TELEGRAM ══════════ */}
+                {/* ══ TELEGRAM ══ */}
                 {activeTab === 'telegram' && (
                   <div className="space-y-6">
                     <SectionTitle icon="✈️" title="Telegram сповіщення" subtitle="Отримуйте замовлення і керуйте ними прямо в Telegram" />
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5 text-sm text-blue-800 space-y-3">
-                      <p className="font-bold text-base">📱 Як підключити — 4 кроки:</p>
-                      <div className="space-y-2.5">
-                        {[
-                          { n: '1', text: <>Відкрийте Telegram і знайдіть бота <a href="https://t.me/flower12go_bot" target="_blank" className="font-bold underline">@flower12go_bot</a></> },
-                          { n: '2', text: <>Натисніть кнопку <strong>▶ Start</strong> (обов'язково — без цього бот не зможе надсилати вам повідомлення)</> },
-                          { n: '3', text: <>Введіть команду <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">/getchatid</code> — бот відповість вашим Chat ID</> },
-                          { n: '4', text: 'Скопіюйте число і вставте нижче' },
-                        ].map(({ n, text }) => (
-                          <div key={n} className="flex items-start gap-3">
-                            <span className="w-6 h-6 bg-blue-200 text-blue-900 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">{n}</span>
-                            <span className="text-blue-700 leading-snug">{text}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-xs mt-1">
-                        ⚠️ <strong>Важливо:</strong> якщо ви ще не натискали Start у боті — підключення не вийде. Спочатку відкрийте бота і натисніть Start.
-                      </div>
-                    </div>
-                    {telegramConnected ? (
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-green-800">✅ Telegram підключено!</p>
-                          <p className="text-sm text-green-600 mt-0.5">Chat ID: <code className="bg-green-100 px-1.5 py-0.5 rounded font-mono">{telegramChatId}</code></p>
-                        </div>
-                        <button type="button" onClick={async () => {
-                          setTelegramLoading(true); setTelegramError(''); setTelegramMsg('')
-                          try {
-                            await fetch('/api/telegram/connect', { method: 'DELETE' })
-                            setTelegramConnected(false); setTelegramChatId('')
-                            setTelegramMsg('Telegram відключено.')
-                          } catch { setTelegramError('Помилка відключення') }
-                          finally { setTelegramLoading(false) }
-                        }} disabled={telegramLoading}
-                          className="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-200 transition-colors">
-                          Відключити
-                        </button>
-                      </div>
+
+                    {/* Gate: Telegram is Basic+ only */}
+                    {!canTelegram ? (
+                      <PlanLockBanner feature="Telegram сповіщення про замовлення" requiredPlan="basic" />
                     ) : (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ваш Telegram Chat ID</label>
-                          <input type="text" value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none font-mono"
-                            placeholder="наприклад: 123456789" />
-                          <p className="text-xs text-gray-400 mt-1">Отримайте командою <code className="bg-gray-100 px-1 rounded">/getchatid</code> у <a href="https://t.me/flower12go_bot" target="_blank" className="text-blue-500 hover:underline">@flower12go_bot</a></p>
+                      <>
+                        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5 text-sm text-blue-800 space-y-3">
+                          <p className="font-bold text-base">📱 Як підключити — 4 кроки:</p>
+                          <div className="space-y-2.5">
+                            {[
+                              { n: '1', text: <>Відкрийте Telegram і знайдіть бота <a href="https://t.me/flower12go_bot" target="_blank" className="font-bold underline">@flower12go_bot</a></> },
+                              { n: '2', text: <>Натисніть кнопку <strong>▶ Start</strong> (обов'язково — без цього бот не зможе надсилати вам повідомлення)</> },
+                              { n: '3', text: <>Введіть команду <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">/getchatid</code> — бот відповість вашим Chat ID</> },
+                              { n: '4', text: 'Скопіюйте число і вставте нижче' },
+                            ].map(({ n, text }) => (
+                              <div key={n} className="flex items-start gap-3">
+                                <span className="w-6 h-6 bg-blue-200 text-blue-900 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">{n}</span>
+                                <span className="text-blue-700 leading-snug">{text}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-xs mt-1">
+                            ⚠️ <strong>Важливо:</strong> якщо ви ще не натискали Start у боті — підключення не вийде.
+                          </div>
                         </div>
-                        <button type="button" onClick={async () => {
-                          if (!telegramChatId.trim()) { setTelegramError('Введіть Chat ID'); return }
-                          setTelegramLoading(true); setTelegramError(''); setTelegramMsg('')
-                          try {
-                            const res = await fetch('/api/telegram/connect', {
-                              method: 'POST', headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ chatId: telegramChatId.trim() })
-                            })
-                            const data = await res.json()
-                            if (!res.ok) throw new Error(data.error)
-                            setTelegramConnected(true); setTelegramMsg(data.message)
-                          } catch (err: any) { setTelegramError(err.message) }
-                          finally { setTelegramLoading(false) }
-                        }} disabled={telegramLoading || !telegramChatId.trim()}
-                          className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                          {telegramLoading ? 'Підключаємо...' : '🔗 Підключити Telegram'}
-                        </button>
-                      </div>
+
+                        {telegramConnected ? (
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-green-800">✅ Telegram підключено!</p>
+                              <p className="text-sm text-green-600 mt-0.5">Chat ID: <code className="bg-green-100 px-1.5 py-0.5 rounded font-mono">{telegramChatId}</code></p>
+                            </div>
+                            <button type="button" onClick={async () => {
+                              setTelegramLoading(true); setTelegramError(''); setTelegramMsg('')
+                              try {
+                                await fetch('/api/telegram/connect', { method: 'DELETE' })
+                                setTelegramConnected(false); setTelegramChatId('')
+                                setTelegramMsg('Telegram відключено.')
+                              } catch { setTelegramError('Помилка відключення') }
+                              finally { setTelegramLoading(false) }
+                            }} disabled={telegramLoading}
+                              className="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-200 transition-colors">
+                              Відключити
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ваш Telegram Chat ID</label>
+                              <input type="text" value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none font-mono"
+                                placeholder="наприклад: 123456789" />
+                            </div>
+                            <button type="button" onClick={async () => {
+                              if (!telegramChatId.trim()) { setTelegramError('Введіть Chat ID'); return }
+                              setTelegramLoading(true); setTelegramError(''); setTelegramMsg('')
+                              try {
+                                const res = await fetch('/api/telegram/connect', {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ chatId: telegramChatId.trim() }),
+                                })
+                                const data = await res.json()
+                                if (!res.ok) throw new Error(data.error)
+                                setTelegramConnected(true); setTelegramMsg(data.message)
+                              } catch (err: any) { setTelegramError(err.message) }
+                              finally { setTelegramLoading(false) }
+                            }} disabled={telegramLoading || !telegramChatId.trim()}
+                              className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                              {telegramLoading ? 'Підключаємо...' : '🔗 Підключити Telegram'}
+                            </button>
+                          </div>
+                        )}
+                        {telegramMsg && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">{telegramMsg}</div>}
+                        {telegramError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{telegramError}</div>}
+                      </>
                     )}
-                    {telegramMsg && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">{telegramMsg}</div>}
-                    {telegramError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{telegramError}</div>}
                   </div>
                 )}
 
@@ -624,9 +627,7 @@ export default function SettingsPage() {
   )
 }
 
-// ─── Reusable components ───────────────────────────────────────────────────────
-
-const inputCls = 'w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all'
+// ─── Reusable sub-components ──────────────────────────────────────────────────
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -665,17 +666,12 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
   )
 }
 
-// Card that wraps a contact field with an eye/visibility toggle
-function ContactCard({
-  icon, label, isVisible, onToggle, hasValue, children
-}: {
+function ContactCard({ icon, label, isVisible, onToggle, hasValue, children }: {
   icon: string; label: string; isVisible: boolean
-  onToggle: (v: boolean) => void; hasValue: boolean
-  children: React.ReactNode
+  onToggle: (v: boolean) => void; hasValue: boolean; children: React.ReactNode
 }) {
   return (
     <div className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${isVisible ? 'border-gray-200' : 'border-gray-100 bg-gray-50/50'}`}>
-      {/* Header row */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">{icon}</span>
@@ -684,27 +680,19 @@ function ContactCard({
             ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">показується</span>
             : !isVisible
             ? <span className="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-medium">приховано</span>
-            : null
-          }
+            : null}
         </div>
-        {/* Visibility toggle */}
         <button type="button" onClick={() => onToggle(!isVisible)}
           className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${isVisible ? 'bg-green-500' : 'bg-gray-300'}`}>
           <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${isVisible ? 'left-6' : 'left-1'}`} />
         </button>
       </div>
-      {/* Input area */}
-      <div className="px-4 pb-4">
-        {children}
-      </div>
+      <div className="px-4 pb-4">{children}</div>
     </div>
   )
 }
 
-// ─── Color Theme Picker ────────────────────────────────────────────────────────
-function ColorThemePicker({
-  primaryColor, accentColor, shopName, onChangePrimary, onChangeAccent
-}: {
+function ColorThemePicker({ primaryColor, accentColor, shopName, onChangePrimary, onChangeAccent }: {
   primaryColor: string; accentColor: string; shopName: string
   onChangePrimary: (v: string) => void; onChangeAccent: (v: string) => void
 }) {
@@ -718,7 +706,6 @@ function ColorThemePicker({
     <div>
       <p className="text-sm font-semibold text-gray-700 mb-1">Колірна тема</p>
       <p className="text-xs text-gray-400 mb-3">Кольори кнопок, значків і градієнтів вашого магазину</p>
-
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-4">
         {(['presets', 'custom'] as const).map(t => (
           <button key={t} type="button" onClick={() => setTab(t)}
@@ -727,7 +714,6 @@ function ColorThemePicker({
           </button>
         ))}
       </div>
-
       {tab === 'presets' && (
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
           {COLOR_THEMES.map(theme => {
@@ -746,7 +732,6 @@ function ColorThemePicker({
           })}
         </div>
       )}
-
       {tab === 'custom' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {[
@@ -759,14 +744,11 @@ function ColorThemePicker({
               <p className="text-sm font-semibold text-gray-700">{label}</p>
               <p className="text-xs text-gray-400">{hint}</p>
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-xl border-2 border-gray-200 overflow-hidden cursor-pointer shadow-sm flex-shrink-0"
-                  style={{ background: val }}>
-                  <input type="color" value={val} onChange={e => onChange(e.target.value)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div className="relative w-12 h-12 rounded-xl border-2 border-gray-200 overflow-hidden cursor-pointer shadow-sm flex-shrink-0" style={{ background: val }}>
+                  <input type="color" value={val} onChange={e => onChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 </div>
                 <input type="text" value={val} onChange={e => onChange(e.target.value)}
-                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-mono focus:border-pink-400 focus:outline-none"
-                  maxLength={7} />
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-mono focus:border-pink-400 focus:outline-none" maxLength={7} />
               </div>
               <div className="flex gap-2 flex-wrap">
                 {swatches.map(c => (
@@ -779,8 +761,6 @@ function ColorThemePicker({
           ))}
         </div>
       )}
-
-      {/* Live preview */}
       <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
         <div className="px-5 py-4 flex items-center justify-between"
           style={{ background: `linear-gradient(to right, ${primaryColor}, ${accentColor})` }}>

@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getPlanConfig } from '@/lib/plans'
+
+async function getShopWithPlan(email: string) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { shop: { include: { plan: true } } },
+  })
+  return user?.shop ?? null
+}
 
 export async function GET() {
   try {
@@ -10,21 +19,23 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: { shop: true },
-    })
+    const shop = await getShopWithPlan(session.user.email)
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
-    if (!user?.shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+    const planConfig = getPlanConfig(shop.plan.slug)
+
+    // If plan does not allow delivery zones, return empty array (not an error,
+    // so the dashboard page can show the gate UI gracefully)
+    if (!planConfig.allowDeliveryZones) {
+      return NextResponse.json({ zones: [], planAllows: false })
     }
 
     const zones = await prisma.deliveryZone.findMany({
-      where: { shopId: user.shop.id },
+      where: { shopId: shop.id },
       orderBy: { sortOrder: 'asc' },
     })
 
-    return NextResponse.json({ zones })
+    return NextResponse.json({ zones, planAllows: true })
   } catch (error) {
     console.error('Failed to fetch delivery zones:', error)
     return NextResponse.json({ error: 'Failed to fetch zones' }, { status: 500 })
@@ -38,20 +49,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: { shop: true },
-    })
+    const shop = await getShopWithPlan(session.user.email)
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
-    if (!user?.shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+    const planConfig = getPlanConfig(shop.plan.slug)
+    if (!planConfig.allowDeliveryZones) {
+      return NextResponse.json(
+        { error: `Зони доставки недоступні на плані «${planConfig.name}». Перейдіть на Базовий або Преміум план.` },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
-    
+
     const zone = await prisma.deliveryZone.create({
       data: {
-        shopId: user.shop.id,
+        shopId: shop.id,
         name: body.name,
         fee: body.fee,
         estimatedMinHours: body.estimatedMinHours,

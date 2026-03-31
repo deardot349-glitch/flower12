@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getPlanConfig } from '@/lib/plans'
 
 export async function GET() {
   try {
@@ -9,11 +10,25 @@ export async function GET() {
     if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const shop = await prisma.shop.findUnique({
+      where: { id: session.user.shopId },
+      include: { plan: true },
+    })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+
+    const planConfig = getPlanConfig(shop.plan.slug)
+
+    if (!planConfig.allowCustomExtras) {
+      return NextResponse.json({ extras: [], planAllows: false })
+    }
+
     const extras = await prisma.customExtra.findMany({
       where: { shopId: session.user.shopId },
       orderBy: { createdAt: 'asc' },
     })
-    return NextResponse.json({ extras })
+
+    return NextResponse.json({ extras, planAllows: true })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
   }
@@ -25,8 +40,24 @@ export async function POST(request: Request) {
     if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const shop = await prisma.shop.findUnique({
+      where: { id: session.user.shopId },
+      include: { plan: true },
+    })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+
+    const planConfig = getPlanConfig(shop.plan.slug)
+    if (!planConfig.allowCustomExtras) {
+      return NextResponse.json(
+        { error: `Кастом речі недоступні на плані «${planConfig.name}». Перейдіть на Преміум.` },
+        { status: 403 }
+      )
+    }
+
     const { name, description, price, imageUrl } = await request.json()
     if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 })
+
     const extra = await prisma.customExtra.create({
       data: {
         shopId: session.user.shopId,
@@ -36,6 +67,7 @@ export async function POST(request: Request) {
         imageUrl: imageUrl || null,
       },
     })
+
     return NextResponse.json({ success: true, extra })
   } catch {
     return NextResponse.json({ error: 'Failed to create' }, { status: 500 })
@@ -48,12 +80,15 @@ export async function PATCH(request: Request) {
     if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
     const body = await request.json()
     const { id, ...data } = body
+
     const extra = await prisma.customExtra.findUnique({ where: { id } })
     if (!extra || extra.shopId !== session.user.shopId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
+
     const updated = await prisma.customExtra.update({ where: { id }, data })
     return NextResponse.json({ success: true, extra: updated })
   } catch {
@@ -67,11 +102,14 @@ export async function DELETE(request: Request) {
     if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
     const { id } = await request.json()
+
     const extra = await prisma.customExtra.findUnique({ where: { id } })
     if (!extra || extra.shopId !== session.user.shopId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
+
     await prisma.customExtra.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch {
