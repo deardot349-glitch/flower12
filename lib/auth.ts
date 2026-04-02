@@ -16,7 +16,6 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Always lowercase email to match how it was saved during signup
         const normalizedEmail = credentials.email.toLowerCase().trim()
 
         const user = await prisma.user.findUnique({
@@ -24,22 +23,30 @@ export const authOptions: NextAuthOptions = {
           include: { shop: true }
         })
 
-        if (!user) {
-          return null
-        }
+        if (!user) return null
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.passwordHash
         )
+        if (!isPasswordValid) return null
 
-        if (!isPasswordValid) {
-          return null
-        }
-
+        // ── Email verification gate ──────────────────────────────────────────
+        // Grace rule: users who registered BEFORE the verification system was
+        // introduced have emailVerified=false but no pending token. Auto-verify
+        // them on first login so they're not locked out forever.
         if (!user.emailVerified) {
-          // Throw so the error message surfaces through NextAuth
-          throw new Error('EmailNotVerified')
+          if (!user.verificationToken) {
+            // Legacy account — verify in-place silently
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { emailVerified: true },
+            })
+          } else {
+            // New account with a pending verification email — block login
+            // and tell the user what to do.
+            throw new Error('EmailNotVerified')
+          }
         }
 
         return {
@@ -51,28 +58,24 @@ export const authOptions: NextAuthOptions = {
       }
     })
   ],
-  session: {
-    strategy: 'jwt',
-  },
+  session: { strategy: 'jwt' },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
-        token.shopId = user.shopId
+        token.id       = user.id
+        token.shopId   = user.shopId
         token.shopSlug = user.shopSlug
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id
-        session.user.shopId = token.shopId
+        session.user.id       = token.id
+        session.user.shopId   = token.shopId
         session.user.shopSlug = token.shopSlug
       }
       return session
     },
   },
-  pages: {
-    signIn: '/login',
-  },
+  pages: { signIn: '/login' },
 }
