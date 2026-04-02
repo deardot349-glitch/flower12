@@ -1,6 +1,16 @@
 // Telegram Bot service
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
+// Escape HTML special chars — prevents injection when using parse_mode:'HTML'
+function esc(s: string | null | undefined): string {
+  if (!s) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export async function sendTelegramMessage(chatId: string, text: string, replyMarkup?: object) {
   if (!BOT_TOKEN) {
     console.error('TELEGRAM_BOT_TOKEN not set')
@@ -67,16 +77,16 @@ export function buildOrderMessage(order: any, shopName: string, flower?: any, cu
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 
-  let text = `🌸 <b>Нове замовлення — ${shopName}</b>\n`
+  let text = `🌸 <b>Нове замовлення — ${esc(shopName)}</b>\n`
   text += `━━━━━━━━━━━━━━━━━━\n`
-  text += `👤 <b>Клієнт:</b> ${order.customerName}\n`
-  text += `📞 <b>Телефон:</b> <a href="tel:${order.phone}">${order.phone}</a>\n`
-  if (order.email) text += `✉️ <b>Email:</b> ${order.email}\n`
-  if (flower) text += `💐 <b>Букет:</b> ${flower.name} — ${currencySymbol}${flower.price}\n`
+  text += `👤 <b>Клієнт:</b> ${esc(order.customerName)}\n`
+  text += `📞 <b>Телефон:</b> <a href="tel:${esc(order.phone)}">${esc(order.phone)}</a>\n`
+  if (order.email) text += `✉️ <b>Email:</b> ${esc(order.email)}\n`
+  if (flower) text += `💐 <b>Букет:</b> ${esc(flower.name)} — ${currencySymbol}${flower.price}\n`
   if (order.deliveryMethod) {
     text += `🚚 <b>Отримання:</b> ${order.deliveryMethod === 'delivery' ? 'Доставка' : 'Самовивіз'}\n`
   }
-  if (order.deliveryAddress) text += `📍 <b>Адреса:</b> ${order.deliveryAddress}\n`
+  if (order.deliveryAddress) text += `📍 <b>Адреса:</b> ${esc(order.deliveryAddress)}\n`
   if (order.totalAmount && order.totalAmount > 0) {
     text += `💵 <b>Сума:</b> ${currencySymbol}${order.totalAmount}\n`
   }

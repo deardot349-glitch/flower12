@@ -62,16 +62,30 @@ export async function POST(request: Request) {
 
     const body = await request.json()
 
+    // ── Validation ────────────────────────────────────────────────────────────
+    if (!body.name?.trim()) {
+      return NextResponse.json({ error: 'Назва зони обов\'язкова' }, { status: 400 })
+    }
+    const fee = parseFloat(body.fee)
+    if (isNaN(fee) || fee < 0) {
+      return NextResponse.json({ error: 'Невірна вартість доставки' }, { status: 400 })
+    }
+    const minHours = parseInt(body.estimatedMinHours ?? '1')
+    const maxHours = parseInt(body.estimatedMaxHours ?? '4')
+    if (isNaN(minHours) || minHours < 0 || isNaN(maxHours) || maxHours < minHours) {
+      return NextResponse.json({ error: 'Невірний час доставки' }, { status: 400 })
+    }
+
     const zone = await prisma.deliveryZone.create({
       data: {
         shopId: shop.id,
-        name: body.name,
-        fee: body.fee,
-        estimatedMinHours: body.estimatedMinHours,
-        estimatedMaxHours: body.estimatedMaxHours,
-        sameDayAvailable: body.sameDayAvailable,
-        minimumOrder: body.minimumOrder || 0,
-        active: body.active !== undefined ? body.active : true,
+        name: body.name.trim(),
+        fee,
+        estimatedMinHours: minHours,
+        estimatedMaxHours: maxHours,
+        sameDayAvailable: body.sameDayAvailable ?? true,
+        minimumOrder: Math.max(0, parseFloat(body.minimumOrder) || 0),
+        active: body.active !== undefined ? Boolean(body.active) : true,
       },
     })
 

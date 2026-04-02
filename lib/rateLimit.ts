@@ -1,75 +1,102 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Simple in-memory rate limiter
-// For production, use Redis (Upstash Redis recommended)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+// ── Config ─────────────────────────────────────────────────────────────────────
+interface RateLimitConfig { limit: number; windowSeconds: number }
 
-interface RateLimitConfig {
-  limit: number
-  window: number // in milliseconds
+const CONFIGS: Record<string, RateLimitConfig> = {
+  '/api/auth/signup':   { limit: 5,   windowSeconds: 60 },
+  '/api/auth':          { limit: 10,  windowSeconds: 60 },
+  '/api/orders/track':  { limit: 10,  windowSeconds: 60 },
+  '/api/orders':        { limit: 20,  windowSeconds: 60 },
+  '/api/subscriptions': { limit: 5,   windowSeconds: 60 },
+  default:              { limit: 100, windowSeconds: 60 },
 }
 
-const configs: Record<string, RateLimitConfig> = {
-  '/api/auth/signup': { limit: 5, window: 60000 }, // 5 signups per minute
-  '/api/auth': { limit: 10, window: 60000 }, // 10 login attempts per minute
-  '/api/orders': { limit: 20, window: 60000 }, // 20 orders per minute
-  '/api/subscriptions': { limit: 5, window: 60000 }, // 5 subscription attempts per minute
-  default: { limit: 100, window: 60000 } // 100 requests per minute for other routes
+function getConfig(path: string): RateLimitConfig {
+  for (const [pattern, cfg] of Object.entries(CONFIGS)) {
+    if (pattern !== 'default' && path.startsWith(pattern)) return cfg
+  }
+  return CONFIGS.default
 }
 
-export function rateLimit(request: NextRequest): NextResponse | null {
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
-  const path = request.nextUrl.pathname
+// ── In-memory fallback ─────────────────────────────────────────────────────────
+// Works in development and single-instance environments.
+// On Vercel with multiple serverless instances this is NOT reliable —
+// configure Upstash (see below) for proper distributed rate limiting.
+const mem = new Map<string, { count: number; resetTime: number }>()
+
+function memCheck(key: string, cfg: RateLimitConfig): boolean {
   const now = Date.now()
-
-  // Find matching config
-  let config = configs.default
-  for (const [pattern, cfg] of Object.entries(configs)) {
-    if (pattern !== 'default' && path.startsWith(pattern)) {
-      config = cfg
-      break
-    }
+  const entry = mem.get(key)
+  if (!entry || now > entry.resetTime) {
+    mem.set(key, { count: 1, resetTime: now + cfg.windowSeconds * 1000 })
+    return false // not rate-limited
   }
+  if (entry.count >= cfg.limit) return true // rate-limited
+  entry.count++
+  return false
+}
 
-  const key = `${ip}:${path}`
-  const clientData = rateLimitMap.get(key)
+// ── Upstash Redis via REST API (no npm package required) ───────────────────────
+// 1. Create a free database at https://console.upstash.com
+// 2. Add to Vercel → Settings → Environment Variables:
+//    UPSTASH_REDIS_REST_URL   = https://xxx.upstash.io
+//    UPSTASH_REDIS_REST_TOKEN = Axxxxx...
+// When both vars are present, Upstash is used automatically.
+async function upstashCheck(key: string, cfg: RateLimitConfig): Promise<boolean | null> {
+  const restUrl   = process.env.UPSTASH_REDIS_REST_URL
+  const restToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!restUrl || !restToken) return null // not configured → fall through to mem
 
-  // Clean up old entries periodically
-  if (Math.random() < 0.01) {
-    const keys = Array.from(rateLimitMap.keys())
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i]
-      const v = rateLimitMap.get(k)
-      if (v && now > v.resetTime) {
-        rateLimitMap.delete(k)
-      }
-    }
-  }
-
-  if (!clientData || now > clientData.resetTime) {
-    rateLimitMap.set(key, { count: 1, resetTime: now + config.window })
+  try {
+    const res = await fetch(`${restUrl}/pipeline`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${restToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([
+        ['INCR', key],
+        ['EXPIRE', key, cfg.windowSeconds, 'NX'], // set TTL only on new key
+      ]),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const count: number = data?.[0]?.result ?? 0
+    return count > cfg.limit
+  } catch {
+    // Upstash unreachable → fall through to in-memory
     return null
   }
+}
 
-  if (clientData.count >= config.limit) {
-    return NextResponse.json(
-      {
-        error: 'Too many requests. Please try again later.',
-        retryAfter: Math.ceil((clientData.resetTime - now) / 1000)
+// ── Public export ──────────────────────────────────────────────────────────────
+export async function rateLimit(request: NextRequest): Promise<NextResponse | null> {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    request.headers.get('x-real-ip') ||
+    (request as any).ip ||
+    'unknown'
+
+  const path = request.nextUrl.pathname
+  const cfg  = getConfig(path)
+  const key  = `rl:${ip}:${path}`
+
+  const upResult = await upstashCheck(key, cfg)
+  const limited  = upResult !== null ? upResult : memCheck(key, cfg)
+
+  if (!limited) return null
+
+  return NextResponse.json(
+    { error: 'Too many requests. Please try again later.', retryAfter: cfg.windowSeconds },
+    {
+      status: 429,
+      headers: {
+        'Retry-After':           String(cfg.windowSeconds),
+        'X-RateLimit-Limit':     String(cfg.limit),
+        'X-RateLimit-Remaining': '0',
       },
-      {
-        status: 429,
-        headers: {
-          'Retry-After': String(Math.ceil((clientData.resetTime - now) / 1000)),
-          'X-RateLimit-Limit': String(config.limit),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': String(clientData.resetTime)
-        }
-      }
-    )
-  }
-
-  clientData.count++
-  return null
+    }
+  )
 }

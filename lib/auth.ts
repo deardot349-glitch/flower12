@@ -37,6 +37,11 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        if (!user.emailVerified) {
+          // Throw so the error message surfaces through NextAuth
+          throw new Error('EmailNotVerified')
+        }
+
         return {
           id: user.id,
           email: user.email,

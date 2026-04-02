@@ -55,6 +55,17 @@ export async function GET(
           },
           orderBy: {
             createdAt: 'desc'
+          },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            imageUrl: true,
+            availability: true,
+            description: true,
+            createdAt: true,
+            madeAt: true,       // needed for freshness badge
+            isCustom: true,
           }
         }
       }

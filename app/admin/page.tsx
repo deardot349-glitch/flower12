@@ -70,8 +70,8 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/payments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret, paymentId, action })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` },
+        body: JSON.stringify({ paymentId, action })
       })
       const data = await res.json()
       if (res.ok) { notify(data.message); fetchAll() }
@@ -85,8 +85,8 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/shops', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret, shopId, action })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` },
+        body: JSON.stringify({ shopId, action })
       })
       const data = await res.json()
       if (res.ok) { notify(data.message); fetchAll() }
@@ -100,8 +100,8 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/shops', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret, subscriptionId, action })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secret}` },
+        body: JSON.stringify({ subscriptionId, action })
       })
       const data = await res.json()
       if (res.ok) { notify(data.message); fetchAll() }

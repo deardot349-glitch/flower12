@@ -149,13 +149,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
     }
 
+    // Apply plan gate to coverImageUrl (same as PUT handler)
+    const planConfig = getPlanConfig(shop.plan.slug)
+
     const updated = await prisma.shop.update({
       where: { id: shop.id },
       data: {
         location: body.location ?? null,
         about: body.about ?? null,
         workingHours: body.workingHours ?? null,
-        coverImageUrl: body.coverImageUrl ?? null,
+        // Only allow cover image if the plan permits it
+        ...(planConfig.allowCoverPhoto && body.coverImageUrl !== undefined
+          ? { coverImageUrl: body.coverImageUrl ?? null }
+          : {}),
       },
     })
 

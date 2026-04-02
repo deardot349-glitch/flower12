@@ -23,6 +23,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Виберіть хоча б одну квітку' }, { status: 400 })
     }
 
+    // Guard against oversized payloads bloating the DB
+    const bouquetStr = JSON.stringify(customBouquet)
+    if (bouquetStr.length > 20_000) {
+      return NextResponse.json(
+        { error: 'Конфігурація букету завелика' },
+        { status: 400 }
+      )
+    }
+
     const shop = await prisma.shop.findUnique({
       where: { slug: shopSlug },
       include: { plan: true, owner: true },
@@ -81,7 +90,7 @@ export async function POST(request: Request) {
         orderType: 'custom_bouquet',
         deliveryMethod,
         deliveryAddress: deliveryAddressStr,
-        customBouquet: JSON.stringify(customBouquet),
+        customBouquet: bouquetStr,
         totalAmount: customBouquet.totalPrice || 0,
         status: 'pending',
       },

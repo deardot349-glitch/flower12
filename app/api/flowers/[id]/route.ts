@@ -31,14 +31,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
+    // Validate price if provided
+    let parsedPrice: number | undefined
+    if (body.price !== undefined) {
+      parsedPrice = parseFloat(body.price)
+      if (isNaN(parsedPrice) || parsedPrice < 0) {
+        return NextResponse.json({ error: 'Невірна ціна' }, { status: 400 })
+      }
+    }
+
+    // Validate name if provided
+    if (body.name !== undefined && !String(body.name).trim()) {
+      return NextResponse.json({ error: 'Назва не може бути порожньою' }, { status: 400 })
+    }
+
     const updated = await prisma.flower.update({
       where: { id: params.id },
       data: {
         availability: body.availability ?? flower.availability,
-        name: body.name ?? flower.name,
-        price: body.price ?? flower.price,
-        imageUrl: body.imageUrl ?? flower.imageUrl,
-        description: body.description ?? flower.description,
+        name: body.name !== undefined ? String(body.name).trim() : flower.name,
+        price: parsedPrice ?? flower.price,
+        imageUrl: body.imageUrl !== undefined ? (body.imageUrl || null) : flower.imageUrl,
+        description: body.description !== undefined ? (body.description?.trim() || null) : flower.description,
         madeAt: body.madeAt !== undefined ? (body.madeAt ? new Date(body.madeAt) : null) : flower.madeAt,
         ...(body.isCustom !== undefined ? { isCustom: Boolean(body.isCustom) } : {}),
       }

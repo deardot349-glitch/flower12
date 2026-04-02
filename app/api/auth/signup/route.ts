@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { slugify, generateUniqueSlug } from '@/lib/utils'
 import { PLANS, getPlanConfig } from '@/lib/plans'
-import { sendWelcomeEmail } from '@/lib/email/service'
+import { sendWelcomeEmail, sendVerificationEmail } from '@/lib/email/service'
 import { validatePassword, validateEmail, validateShopName } from '@/lib/validators'
 
 // ─── Detect card type from first digit ─────────────────────────────────────
@@ -159,18 +159,34 @@ export async function POST(request: Request) {
       })
     }
 
+    // Generate email verification token
+    const crypto = await import('crypto')
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { verificationToken, verificationTokenExpiry },
+    })
+
     try {
       await sendWelcomeEmail(email, shopName, slug)
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError)
     }
 
+    try {
+      await sendVerificationEmail(email, shopName, verificationToken)
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError)
+    }
+
     const isPaid = selectedPlanConfig.price > 0
     return NextResponse.json({
       success: true,
       message: isPaid
-        ? 'Акаунт створено! Оплату буде перевірено протягом 24 год — після цього план активується.'
-        : 'Акаунт створено! Тепер можна увійти.',
+        ? 'Акаунт створено! Перевірте email (лист надійшов) та підтвердіть адресу ел. пошти. Оплату буде перевірено протягом 24 год.'
+        : 'Акаунт створено! Перевірте email — лист з посиланням надійшов.',
       user: { id: user.id, email: user.email, shopSlug: user.shop?.slug },
     })
   } catch (error: any) {
@@ -181,8 +197,9 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+    // Generic message — never expose raw error internals to the client
     return NextResponse.json(
-      { error: `Failed to create account: ${error.message}` },
+      { error: 'Failed to create account. Please try again.' },
       { status: 500 }
     )
   }

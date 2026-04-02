@@ -60,7 +60,23 @@ export async function POST(request: Request) {
     // ── Flower details ────────────────────────────────────────────────────────
     let flower: Awaited<ReturnType<typeof prisma.flower.findUnique>> | null = null
     if (flowerId) {
-      flower = await prisma.flower.findUnique({ where: { id: flowerId } })
+      // Always scope to this shop to prevent cross-shop flower ordering
+      flower = await prisma.flower.findUnique({
+        where: { id: flowerId, shopId: finalShopId },
+      })
+      if (!flower) {
+        return NextResponse.json({ error: 'Квітку не знайдено' }, { status: 404 })
+      }
+    }
+
+    // ── Minimum order check ───────────────────────────────────────────────────
+    const orderTotal = bodyTotalAmount ?? flower?.price ?? 0
+    const minOrder   = (shop as any).minimumOrderAmount ?? 0
+    if (minOrder > 0 && orderTotal < minOrder) {
+      return NextResponse.json(
+        { error: `Мінімальна сума замовлення: ${minOrder} ${(shop as any).currency || 'UAH'}` },
+        { status: 400 }
+      )
     }
 
     // ── Build readable message ────────────────────────────────────────────────
