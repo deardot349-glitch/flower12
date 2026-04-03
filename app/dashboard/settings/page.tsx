@@ -47,11 +47,10 @@ const CONTACT_FIELDS = [
 
 const inputCls = 'w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all'
 
-// ── Small reusable lock banner ────────────────────────────────────────────────
+// ── Plan lock banner ──────────────────────────────────────────────────────────
 function PlanLockBanner({ feature, requiredPlan }: { feature: string; requiredPlan: 'basic' | 'premium' }) {
   const label = requiredPlan === 'basic' ? 'Базовий або Преміум' : 'Преміум'
   const price  = requiredPlan === 'basic' ? '900 грн/міс' : '2000 грн/міс'
-  const planSlugLink = requiredPlan === 'basic' ? 'basic' : 'premium'
   return (
     <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
       <span className="text-2xl">🔒</span>
@@ -67,6 +66,59 @@ function PlanLockBanner({ feature, requiredPlan }: { feature: string; requiredPl
   )
 }
 
+// ── Delivery cities multi-selector ────────────────────────────────────────────
+// Stores selected cities as a comma-separated string in deliveryTimeEstimate field
+function DeliveryCitiesSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const selected = value ? value.split(',').map(c => c.trim()).filter(Boolean) : []
+
+  const toggle = (city: string) => {
+    const next = selected.includes(city)
+      ? selected.filter(c => c !== city)
+      : [...selected, city]
+    onChange(next.join(', '))
+  }
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {selected.map(city => (
+            <span key={city} className="flex items-center gap-1.5 bg-pink-100 text-pink-800 text-xs font-bold px-3 py-1.5 rounded-full">
+              📍 {city}
+              <button type="button" onClick={() => toggle(city)} className="ml-0.5 text-pink-400 hover:text-pink-700 font-black leading-none">×</button>
+            </span>
+          ))}
+          <button type="button" onClick={() => onChange('')}
+            className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded-lg transition-colors">
+            Очистити все
+          </button>
+        </div>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+        {UA_CITIES.map(city => {
+          const active = selected.includes(city)
+          return (
+            <button key={city} type="button" onClick={() => toggle(city)}
+              className={`text-left text-xs px-3 py-2 rounded-xl border-2 font-medium transition-all ${
+                active
+                  ? 'border-pink-400 bg-pink-50 text-pink-800'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-pink-300 hover:bg-pink-50/50'
+              }`}>
+              {active ? '✓ ' : ''}{city}
+            </button>
+          )
+        })}
+      </div>
+      {selected.length === 0 && (
+        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mt-3">
+          ⚠️ Оберіть хоча б одне місто доставки
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [planSlug, setPlanSlug] = useState<string>('free')
@@ -102,7 +154,6 @@ export default function SettingsPage() {
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
 
-  // Derived plan permissions
   const plan = getPlanConfig(planSlug)
   const canCoverPhoto   = plan.allowCoverPhoto
   const canLogoUpload   = plan.allowLogoUpload
@@ -299,25 +350,15 @@ export default function SettingsPage() {
                         </select>
                       </Field>
                     </div>
-
-                    {/* City selector — appears in the public /shops directory */}
-                    <Field label="📍 Місто магазину" hint="Клієнти зможуть знайти ваш магазин на сторінці /shops по місту">
-                      <div className="relative">
-                        <select
-                          value={shopData.city}
-                          onChange={e => set('city', e.target.value)}
-                          className={inputCls}
-                        >
-                          <option value="">Оберіть місто...</option>
-                          {UA_CITIES.map(c => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
-                      </div>
+                    <Field label="📍 Місто магазину" hint="Клієнти зможуть знайти ваш магазин у каталозі /shops по місту">
+                      <select value={shopData.city} onChange={e => set('city', e.target.value)} className={inputCls}>
+                        <option value="">Оберіть місто...</option>
+                        {UA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
                       {shopData.city && (
                         <div className="mt-2 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
                           <span>✅</span>
-                          <span>Ваш магазин буде видно у каталозі для міста <strong>{shopData.city}</strong></span>
+                          <span>Ваш магазин видно у каталозі для міста <strong>{shopData.city}</strong></span>
                           <a href="/shops" target="_blank" className="ml-auto font-bold underline hover:text-green-900">Переглянути каталог →</a>
                         </div>
                       )}
@@ -330,7 +371,6 @@ export default function SettingsPage() {
                   <>
                     <SectionTitle icon="🎨" title="Зовнішній вигляд" subtitle="Налаштуйте дизайн вашої публічної сторінки" />
 
-                    {/* Cover photo — Basic + Premium */}
                     {canCoverPhoto ? (
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-1">Фото обкладинки</p>
@@ -340,13 +380,9 @@ export default function SettingsPage() {
                             <Image src={coverPreview} alt="Cover" fill className="object-cover" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                               <button type="button" onClick={() => coverInputRef.current?.click()}
-                                className="bg-white text-gray-800 px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-gray-100">
-                                🔄 Змінити
-                              </button>
+                                className="bg-white text-gray-800 px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-gray-100">🔄 Змінити</button>
                               <button type="button" onClick={() => { setCoverPreview(null); set('coverImageUrl', '') }}
-                                className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-red-600">
-                                🗑 Видалити
-                              </button>
+                                className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-red-600">🗑 Видалити</button>
                             </div>
                           </div>
                         ) : (
@@ -373,7 +409,6 @@ export default function SettingsPage() {
                       <PlanLockBanner feature="Фото обкладинки" requiredPlan="basic" />
                     )}
 
-                    {/* Logo — Premium only */}
                     {canLogoUpload ? (
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-1">Логотип магазину</p>
@@ -405,7 +440,6 @@ export default function SettingsPage() {
                       <PlanLockBanner feature="Власний логотип магазину" requiredPlan="premium" />
                     )}
 
-                    {/* Custom colors — Premium only */}
                     {canCustomColors ? (
                       <ColorThemePicker
                         primaryColor={shopData.primaryColor}
@@ -459,9 +493,7 @@ export default function SettingsPage() {
                           onToggle={v => set(showKey, v)} hasValue={!!value}>
                           <div className="relative">
                             {prefix && (
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-sm text-gray-400 select-none">
-                                {prefix}
-                              </span>
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-sm text-gray-400 select-none">{prefix}</span>
                             )}
                             <input type={type} value={value} onChange={e => set(key, e.target.value)}
                               disabled={!isVisible} placeholder={placeholder}
@@ -534,28 +566,38 @@ export default function SettingsPage() {
                 {/* ══ DELIVERY ══ */}
                 {activeTab === 'delivery' && (
                   <>
-                    <SectionTitle icon="🚚" title="Налаштування доставки" subtitle="Як ви доставляєте замовлення клієнтам" />
+                    <SectionTitle icon="🚚" title="Налаштування доставки" subtitle="Міста доставки та умови замовлень" />
+
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-1">📍 Міста доставки</p>
+                      <p className="text-xs text-gray-400 mb-3">
+                        Оберіть міста, в які ви доставляєте. Клієнти побачать цей список при оформленні замовлення.
+                      </p>
+                      <DeliveryCitiesSelector
+                        value={shopData.deliveryTimeEstimate}
+                        onChange={v => set('deliveryTimeEstimate', v)}
+                      />
+                    </div>
+
+                    <hr className="border-gray-100" />
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Field label="Час доставки" hint="Наприклад: '2–4 години' або '1–2 дні'">
-                        <input type="text" value={shopData.deliveryTimeEstimate} onChange={e => set('deliveryTimeEstimate', e.target.value)}
-                          className={inputCls} placeholder="2–4 години" />
-                      </Field>
                       <Field label="Час прийому замовлень" hint="Замовлення після цього часу — наступного дня">
-                        <input type="time" value={shopData.deliveryCutoffTime} onChange={e => set('deliveryCutoffTime', e.target.value)}
-                          className={inputCls} />
+                        <input type="time" value={shopData.deliveryCutoffTime}
+                          onChange={e => set('deliveryCutoffTime', e.target.value)} className={inputCls} />
+                      </Field>
+                      <Field label="Мінімальна сума замовлення" hint="0 = без мінімуму">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">
+                            {shopData.currency === 'UAH' ? '₴' : shopData.currency === 'EUR' ? '€' : shopData.currency === 'GBP' ? '£' : '$'}
+                          </span>
+                          <input type="number" min="0" step="1" value={shopData.minimumOrderAmount}
+                            onChange={e => set('minimumOrderAmount', parseFloat(e.target.value) || 0)}
+                            className={`${inputCls} pl-8`} />
+                        </div>
                       </Field>
                     </div>
-                    <Field label="Мінімальна сума замовлення" hint="0 = без мінімуму">
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">
-                          {shopData.currency === 'UAH' ? '₴' : shopData.currency === 'EUR' ? '€' : shopData.currency === 'GBP' ? '£' : '$'}
-                        </span>
-                        <input type="number" min="0" step="1" value={shopData.minimumOrderAmount}
-                          onChange={e => set('minimumOrderAmount', parseFloat(e.target.value) || 0)}
-                          className={`${inputCls} pl-8`} />
-                      </div>
-                    </Field>
-                    <hr className="border-gray-100" />
+
                     <div className="space-y-3">
                       <Toggle label="Доставка в той самий день" hint="Клієнти можуть отримати замовлення сьогодні"
                         checked={shopData.sameDayDelivery} onChange={v => set('sameDayDelivery', v)} />
@@ -579,25 +621,16 @@ export default function SettingsPage() {
                         Це постійно видалить ваш магазин, усі букети, замовлення та ваш акаунт — безповоротньо.
                         Переконайтесь, що ви цього хочете.
                       </p>
-                      <p className="text-sm font-semibold text-red-800 mb-2">
-                        Напишіть «ВИДАЛИТИ» для підтвердження:
-                      </p>
-                      <input
-                        type="text"
-                        value={deleteConfirm}
-                        onChange={e => setDeleteConfirm(e.target.value)}
+                      <p className="text-sm font-semibold text-red-800 mb-2">Напишіть «ВИДАЛИТИ» для підтвердження:</p>
+                      <input type="text" value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}
                         placeholder="ВИДАЛИТИ"
-                        className="w-full border-2 border-red-300 rounded-xl px-4 py-2.5 text-sm font-mono mb-3 focus:border-red-500 outline-none bg-white"
-                      />
+                        className="w-full border-2 border-red-300 rounded-xl px-4 py-2.5 text-sm font-mono mb-3 focus:border-red-500 outline-none bg-white" />
                       {deleteError && (
                         <p className="text-sm text-red-700 bg-red-100 px-3 py-2 rounded-lg mb-3">{deleteError}</p>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleDeleteShop}
+                      <button type="button" onClick={handleDeleteShop}
                         disabled={deleteConfirm !== 'ВИДАЛИТИ' || deleteLoading}
-                        className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-sm transition-colors"
-                      >
+                        className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-sm transition-colors">
                         {deleteLoading ? 'Видаляємо...' : '🗑️ Назавжди видалити магазин та акаунт'}
                       </button>
                     </div>
@@ -608,8 +641,6 @@ export default function SettingsPage() {
                 {activeTab === 'telegram' && (
                   <div className="space-y-6">
                     <SectionTitle icon="✈️" title="Telegram сповіщення" subtitle="Отримуйте замовлення і керуйте ними прямо в Telegram" />
-
-                    {/* Gate: Telegram is Basic+ only */}
                     {!canTelegram ? (
                       <PlanLockBanner feature="Telegram сповіщення про замовлення" requiredPlan="basic" />
                     ) : (
@@ -709,7 +740,7 @@ export default function SettingsPage() {
   )
 }
 
-// ─── Reusable sub-components ──────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (

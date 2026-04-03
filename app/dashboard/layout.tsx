@@ -33,7 +33,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <NavLink href="/dashboard">Головна</NavLink>
                 <NavLink href="/dashboard/assortment">Асортимент</NavLink>
                 <NavLink href="/dashboard/orders">Замовлення</NavLink>
-                <NavLink href="/dashboard/delivery">Доставка</NavLink>
                 <NavLink href="/dashboard/subscription">Підписка</NavLink>
                 <NavLink href="/dashboard/settings">Налаштування</NavLink>
                 <NavLink href="/shops">🏙️ Каталог</NavLink>
@@ -59,7 +58,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
             { href: '/dashboard', label: 'Головна' },
             { href: '/dashboard/assortment', label: 'Асортимент' },
             { href: '/dashboard/orders', label: 'Замовлення' },
-            { href: '/dashboard/delivery', label: 'Доставка' },
             { href: '/dashboard/subscription', label: 'Підписка' },
             { href: '/dashboard/settings', label: 'Налаштування' },
             { href: '/shops', label: '🏙️ Каталог' },

@@ -276,7 +276,7 @@ export default async function DashboardPage() {
                 <QuickAction href="/dashboard/assortment" icon="🌸" label="Асортимент" desc="Букети, квіти, упаковка" />
                 <QuickAction href="/dashboard/orders" icon="📦" label="Замовлення" desc={pendingOrders > 0 ? `${pendingOrders} очікують` : 'Все оброблено!'} highlight={pendingOrders > 0} />
                 <QuickAction href="/dashboard/settings" icon="⚙️" label="Налаштування" desc="Кольори, години, контакти" />
-                <QuickAction href="/dashboard/delivery" icon="🚚" label="Зони доставки" desc="Налаштувати райони і ціни" />
+                <QuickAction href="/dashboard/settings?tab=delivery" icon="🚚" label="Зони доставки" desc="Міста доставки" />
                 <QuickAction href="/shops" icon="🏙️" label="Каталог магазинів" desc="Всі магазини по містах України" />
               </div>
             </div>
