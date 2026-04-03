@@ -36,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <NavLink href="/dashboard/delivery">Доставка</NavLink>
                 <NavLink href="/dashboard/subscription">Підписка</NavLink>
                 <NavLink href="/dashboard/settings">Налаштування</NavLink>
+                <NavLink href="/shops">🏙️ Каталог</NavLink>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -61,6 +62,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             { href: '/dashboard/delivery', label: 'Доставка' },
             { href: '/dashboard/subscription', label: 'Підписка' },
             { href: '/dashboard/settings', label: 'Налаштування' },
+            { href: '/shops', label: '🏙️ Каталог' },
           ].map(l => (
             <Link key={l.href} href={l.href}
               className="text-xs text-gray-600 font-medium whitespace-nowrap px-3 py-1.5 rounded-lg hover:bg-gray-100">

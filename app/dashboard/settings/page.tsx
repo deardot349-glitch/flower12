@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getPlanConfig } from '@/lib/plans'
+import { UA_CITIES } from '@/lib/cities'
 
 type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'telegram' | 'danger'
 
@@ -298,6 +299,29 @@ export default function SettingsPage() {
                         </select>
                       </Field>
                     </div>
+
+                    {/* City selector — appears in the public /shops directory */}
+                    <Field label="📍 Місто магазину" hint="Клієнти зможуть знайти ваш магазин на сторінці /shops по місту">
+                      <div className="relative">
+                        <select
+                          value={shopData.city}
+                          onChange={e => set('city', e.target.value)}
+                          className={inputCls}
+                        >
+                          <option value="">Оберіть місто...</option>
+                          {UA_CITIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {shopData.city && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
+                          <span>✅</span>
+                          <span>Ваш магазин буде видно у каталозі для міста <strong>{shopData.city}</strong></span>
+                          <a href="/shops" target="_blank" className="ml-auto font-bold underline hover:text-green-900">Переглянути каталог →</a>
+                        </div>
+                      )}
+                    </Field>
                   </>
                 )}
 
