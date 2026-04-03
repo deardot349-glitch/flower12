@@ -74,6 +74,34 @@ export async function POST(request: Request) {
   }
 }
 
+// DELETE — permanently delete a shop and all its data
+export async function DELETE(request: Request) {
+  try {
+    if (!checkAdminAuth(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { shopId } = await request.json()
+    if (!shopId) return NextResponse.json({ error: 'shopId required' }, { status: 400 })
+
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      include: { owner: true },
+    })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
+
+    // Delete the owner user — cascades to Shop → everything
+    await prisma.user.delete({ where: { id: shop.ownerId } })
+
+    return NextResponse.json({
+      success: true,
+      message: `Магазин «${shop.name}» та акаунт видалено.`,
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
 // PATCH — cancel / activate a subscription
 export async function PATCH(request: Request) {
   try {

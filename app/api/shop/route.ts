@@ -131,6 +131,35 @@ export async function PUT(request: Request) {
   }
 }
 
+// ── DELETE — owner permanently deletes their shop (and their account) ──────────────
+// This cascades: shop → flowers, orders, zones, subscriptions all deleted via Prisma cascade.
+// The User record is also deleted (cascade from User → Shop).
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Require a confirmation phrase in the body to prevent accidental deletes
+    const body = await request.json().catch(() => ({}))
+    if (body.confirm !== 'DELETE') {
+      return NextResponse.json(
+        { error: 'Send { confirm: "DELETE" } to confirm permanent deletion.' },
+        { status: 400 }
+      )
+    }
+
+    // Delete the user — cascades to Shop, which cascades to everything else
+    await prisma.user.delete({ where: { id: session.user.id } })
+
+    return NextResponse.json({ success: true, message: 'Магазин та акаунт видалено.' })
+  } catch (error: any) {
+    console.error('Shop deletion error:', error)
+    return NextResponse.json({ error: 'Failed to delete shop' }, { status: 500 })
+  }
+}
+
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions)

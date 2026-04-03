@@ -88,11 +88,19 @@ export async function GET(request: Request) {
       }
     }
 
+    // ── Auto-delete orders older than 30 days ───────────────────────────────────
+    const orderCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const deletedOrders = await prisma.order.deleteMany({
+      where: { createdAt: { lt: orderCutoff } },
+    })
+    console.log(`Auto-deleted ${deletedOrders.count} orders older than 30 days`)
+
     return NextResponse.json({
-      success:   true,
-      processed: expiredSubscriptions.length,
+      success:        true,
+      processed:      expiredSubscriptions.length,
       results,
-      timestamp: now.toISOString(),
+      ordersDeleted:  deletedOrders.count,
+      timestamp:      now.toISOString(),
     })
   } catch (error: any) {
     console.error('Cron job error:', error)

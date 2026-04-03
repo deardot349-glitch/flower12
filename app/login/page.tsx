@@ -16,7 +16,7 @@ function LoginForm() {
   useEffect(() => {
     // ?registered=true  — came from signup page
     if (searchParams.get('registered') === 'true') {
-      setInfo('Акаунт створено! Перевірте email та підтвердіть адресу, потім увійдіть.')
+      setInfo('Акаунт створено! Тепер можна увійти.')
     }
     // ?verified=1  — came from clicking the verification link in the email
     if (searchParams.get('verified') === '1') {

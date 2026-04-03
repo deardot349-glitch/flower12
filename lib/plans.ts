@@ -36,7 +36,7 @@ export const PLANS: PlanConfig[] = [
     priceLabel: 'Безкоштовно',
     tagline: 'Спробуйте платформу без жодного ризику.',
     durationDays: 0,
-    maxBouquets: 10,
+    maxBouquets: 5, // strictly 5 on free
 
     // Free gets a complete-looking profile so the shop page doesn't look broken
     allowProfileDetails: true,   // address, working hours, phone number visible
@@ -53,7 +53,7 @@ export const PLANS: PlanConfig[] = [
     allowRemoveBranding: false,  // platform branding shown
 
     features: [
-      'До 10 букетів — достатньо щоб почати',
+      'До 5 букетів — щоб запуститись',
       'Публічна сторінка магазину з адресою та годинами роботи',
       'Приймання замовлень через сайт',
       'Email сповіщення про нові замовлення',

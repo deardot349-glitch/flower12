@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { slugify, generateUniqueSlug } from '@/lib/utils'
 import { PLANS, getPlanConfig } from '@/lib/plans'
-import { sendWelcomeEmail, sendVerificationEmail } from '@/lib/email/service'
+import { sendWelcomeEmail } from '@/lib/email/service'
 import { validatePassword, validateEmail, validateShopName } from '@/lib/validators'
 
 // ─── Detect card type from first digit ─────────────────────────────────────
@@ -16,25 +16,33 @@ function detectCardType(cardNumber: string): string {
 }
 
 async function ensurePlans() {
-  const existingPlans = await prisma.plan.findMany()
-  if (existingPlans.length === 0) {
-    await Promise.all(
-      PLANS.map((plan) =>
-        prisma.plan.create({
-          data: {
-            name:               plan.name,
-            slug:               plan.slug,
-            description:        plan.tagline,
-            price:              plan.price,
-            durationDays:       plan.durationDays,
-            maxBouquets:        plan.maxBouquets,
-            allowProfileDetails: plan.allowProfileDetails,
-            features:           JSON.stringify(plan.features),
-          },
-        })
-      )
+  // Upsert all plans so DB values always stay in sync with plans.ts
+  await Promise.all(
+    PLANS.map((plan) =>
+      prisma.plan.upsert({
+        where: { slug: plan.slug },
+        create: {
+          name:                plan.name,
+          slug:                plan.slug,
+          description:         plan.tagline,
+          price:               plan.price,
+          durationDays:        plan.durationDays,
+          maxBouquets:         plan.maxBouquets,
+          allowProfileDetails: plan.allowProfileDetails,
+          features:            JSON.stringify(plan.features),
+        },
+        update: {
+          name:                plan.name,
+          description:         plan.tagline,
+          price:               plan.price,
+          durationDays:        plan.durationDays,
+          maxBouquets:         plan.maxBouquets, // keeps DB in sync if we change limits
+          allowProfileDetails: plan.allowProfileDetails,
+          features:            JSON.stringify(plan.features),
+        },
+      })
     )
-  }
+  )
 }
 
 export async function POST(request: Request) {
@@ -116,8 +124,9 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.create({
       data: {
-        email:        email.toLowerCase().trim(),
+        email:         email.toLowerCase().trim(),
         passwordHash,
+        emailVerified: true, // auto-verify on signup — no email gate
         shop: {
           create: {
             name:     shopName.trim(),
@@ -159,34 +168,18 @@ export async function POST(request: Request) {
       })
     }
 
-    // Generate email verification token
-    const crypto = await import('crypto')
-    const verificationToken = crypto.randomBytes(32).toString('hex')
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { verificationToken, verificationTokenExpiry },
-    })
-
     try {
       await sendWelcomeEmail(email, shopName, slug)
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError)
     }
 
-    try {
-      await sendVerificationEmail(email, shopName, verificationToken)
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError)
-    }
-
     const isPaid = selectedPlanConfig.price > 0
     return NextResponse.json({
       success: true,
       message: isPaid
-        ? 'Акаунт створено! Перевірте email (лист надійшов) та підтвердіть адресу ел. пошти. Оплату буде перевірено протягом 24 год.'
-        : 'Акаунт створено! Перевірте email — лист з посиланням надійшов.',
+        ? 'Акаунт створено! Оплату буде перевірено протягом 24 год — після цього план активується.'
+        : 'Акаунт створено! Тепер можна увійти.',
       user: { id: user.id, email: user.email, shopSlug: user.shop?.slug },
     })
   } catch (error: any) {

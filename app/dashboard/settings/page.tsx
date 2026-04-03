@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getPlanConfig } from '@/lib/plans'
 
-type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'telegram'
+type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'telegram' | 'danger'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS: Record<string, string> = {
@@ -191,6 +191,28 @@ export default function SettingsPage() {
 
   const set = (key: string, value: any) => setShopData(p => ({ ...p, [key]: value }))
 
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  const handleDeleteShop = async () => {
+    if (deleteConfirm !== 'ВИДАЛИТИ') return
+    setDeleteLoading(true); setDeleteError('')
+    try {
+      const res = await fetch('/api/shop', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      window.location.href = '/api/auth/signout?callbackUrl=/'
+    } catch (err: any) {
+      setDeleteError(err.message)
+      setDeleteLoading(false)
+    }
+  }
+
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'general',    label: 'Загальне',     icon: '🏪' },
     { id: 'appearance', label: 'Дизайн',        icon: '🎨' },
@@ -198,6 +220,7 @@ export default function SettingsPage() {
     { id: 'hours',      label: 'Години роботи', icon: '🕐' },
     { id: 'delivery',   label: 'Доставка',      icon: '🚚' },
     { id: 'telegram',   label: 'Telegram',      icon: '✈️' },
+    { id: 'danger',     label: 'Небезпека',     icon: '⚠️' },
   ]
 
   return (
@@ -520,6 +543,41 @@ export default function SettingsPage() {
                         checked={shopData.autoConfirmOrders} onChange={v => set('autoConfirmOrders', v)} />
                     </div>
                   </>
+                )}
+
+                {/* ══ DANGER ZONE ══ */}
+                {activeTab === 'danger' && (
+                  <div className="space-y-6">
+                    <SectionTitle icon="⚠️" title="Небезпечна зона" subtitle="Ці дії необротні і не можуть бути скасовані" />
+                    <div className="border-2 border-red-200 rounded-2xl p-6 bg-red-50">
+                      <h3 className="text-base font-black text-red-800 mb-1">🚫 Видалити магазин</h3>
+                      <p className="text-sm text-red-700 mb-4 leading-relaxed">
+                        Це постійно видалить ваш магазин, усі букети, замовлення та ваш акаунт — безповоротньо.
+                        Переконайтесь, що ви цього хочете.
+                      </p>
+                      <p className="text-sm font-semibold text-red-800 mb-2">
+                        Напишіть «ВИДАЛИТИ» для підтвердження:
+                      </p>
+                      <input
+                        type="text"
+                        value={deleteConfirm}
+                        onChange={e => setDeleteConfirm(e.target.value)}
+                        placeholder="ВИДАЛИТИ"
+                        className="w-full border-2 border-red-300 rounded-xl px-4 py-2.5 text-sm font-mono mb-3 focus:border-red-500 outline-none bg-white"
+                      />
+                      {deleteError && (
+                        <p className="text-sm text-red-700 bg-red-100 px-3 py-2 rounded-lg mb-3">{deleteError}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleDeleteShop}
+                        disabled={deleteConfirm !== 'ВИДАЛИТИ' || deleteLoading}
+                        className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-sm transition-colors"
+                      >
+                        {deleteLoading ? 'Видаляємо...' : '🗑️ Назавжди видалити магазин та акаунт'}
+                      </button>
+                    </div>
+                  </div>
                 )}
 
                 {/* ══ TELEGRAM ══ */}
