@@ -9,7 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
   const shopSlug = session.user.shopSlug
-  const shopName = session.user.name || 'Мій магазин'
+  const shopName = session.user.email || 'Мій магазин'
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
