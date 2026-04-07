@@ -7,9 +7,9 @@ export interface PlanConfig {
   priceLabel: string
   tagline: string
   durationDays: number
-  maxBouquets: number          // 999 = unlimited
-  // ── feature gates ──────────────────────────
-  allowProfileDetails: boolean // address, hours, phone on free page
+  maxBouquets: number
+  // ── feature gates ──────────────────────────────────────────────────────────
+  allowProfileDetails: boolean
   allowTelegram: boolean
   allowDeliveryZones: boolean
   allowAnalytics: boolean
@@ -21,14 +21,16 @@ export interface PlanConfig {
   allowCustomBouquet: boolean
   allowCustomExtras: boolean
   allowRemoveBranding: boolean
-  // ── display ────────────────────────────────
+  /** Shop appears in the public /shops directory */
+  allowDirectoryListing: boolean
+  // ── display ────────────────────────────────────────────────────────────────
   features: string[]
   limitations: string[]
   highlight?: boolean
 }
 
 export const PLANS: PlanConfig[] = [
-  // ─────────────────────────────────────────────────────────────── FREE ──────
+  // ──────────────────────────────────────────────────────────────── FREE ─────
   {
     slug: 'free',
     name: 'Безкоштовний',
@@ -36,10 +38,9 @@ export const PLANS: PlanConfig[] = [
     priceLabel: 'Безкоштовно',
     tagline: 'Спробуйте платформу без жодного ризику.',
     durationDays: 0,
-    maxBouquets: 5, // strictly 5 on free
+    maxBouquets: 5,
 
-    // Free gets a complete-looking profile so the shop page doesn't look broken
-    allowProfileDetails: true,   // address, working hours, phone number visible
+    allowProfileDetails: true,
     allowTelegram: false,
     allowDeliveryZones: false,
     allowAnalytics: false,
@@ -50,7 +51,8 @@ export const PLANS: PlanConfig[] = [
     allowWrappingOptions: false,
     allowCustomBouquet: false,
     allowCustomExtras: false,
-    allowRemoveBranding: false,  // platform branding shown
+    allowRemoveBranding: false,
+    allowDirectoryListing: false, // ← not listed in /shops
 
     features: [
       'До 5 букетів — щоб запуститись',
@@ -59,6 +61,7 @@ export const PLANS: PlanConfig[] = [
       'Email сповіщення про нові замовлення',
     ],
     limitations: [
+      'Без відображення у загальному каталозі /shops',
       'Без Telegram сповіщень',
       'Без зон доставки',
       'Без аналітики',
@@ -67,7 +70,7 @@ export const PLANS: PlanConfig[] = [
     ],
   },
 
-  // ────────────────────────────────────────────────────────────── BASIC ──────
+  // ───────────────────────────────────────────────────────────────── BASIC ───
   {
     slug: 'basic',
     name: 'Базовий',
@@ -80,24 +83,25 @@ export const PLANS: PlanConfig[] = [
     allowProfileDetails: true,
     allowTelegram: true,
     allowDeliveryZones: true,
-    allowAnalytics: false,        // analytics is Premium only
-    allowCustomColors: false,     // branding customisation is Premium
-    allowCoverPhoto: true,        // cover photo: basic gets it
-    allowLogoUpload: false,       // logo upload: Premium only
+    allowAnalytics: false,
+    allowCustomColors: false,
+    allowCoverPhoto: true,
+    allowLogoUpload: false,
     allowStockManagement: false,
     allowWrappingOptions: false,
     allowCustomBouquet: false,
     allowCustomExtras: false,
     allowRemoveBranding: true,
+    allowDirectoryListing: true,  // ← listed in /shops
 
     features: [
       'До 40 букетів — вистачить для більшості магазинів',
       'Повний профіль — адреса, години, контакти',
-      'Telegram сповіщення з кнопками — не пропустіть жодне замовлення',
-      'Зони доставки з вартістю — клієнти бачать ціну одразу',
-      'Фото обкладинки — красивий перший екран',
-      'Посилання на WhatsApp та Instagram',
-      'Без логотипу FlowerGoUa на сторінці',
+      '📍 Відображення у загальному каталозі /shops',
+      'Telegram сповіщення з кнопками',
+      'Зони доставки з вартістю',
+      'Фото обкладинки',
+      'Без логотипу FlowerGoUa',
     ],
     limitations: [
       'Без кастомних кольорів та логотипу магазину',
@@ -107,7 +111,7 @@ export const PLANS: PlanConfig[] = [
     highlight: true,
   },
 
-  // ─────────────────────────────────────────────────────────────── PREMIUM ──
+  // ─────────────────────────────────────────────────────────────── PREMIUM ───
   {
     slug: 'premium',
     name: 'Преміум',
@@ -115,7 +119,7 @@ export const PLANS: PlanConfig[] = [
     priceLabel: '2000 грн / міс',
     tagline: 'Повний контроль для серйозного бізнесу.',
     durationDays: 30,
-    maxBouquets: 999,             // unlimited
+    maxBouquets: 999,
 
     allowProfileDetails: true,
     allowTelegram: true,
@@ -129,23 +133,22 @@ export const PLANS: PlanConfig[] = [
     allowCustomBouquet: true,
     allowCustomExtras: true,
     allowRemoveBranding: true,
+    allowDirectoryListing: true,  // ← listed in /shops
 
     features: [
       'Необмежена кількість букетів',
       'Все з Базового плану',
-      '🔥 Кастомний конструктор букетів — клієнт збирає сам',
-      '🔥 Кастом речі — іграшки, вузлики, цукерки тощо',
+      '📍 Пріоритетне відображення у каталозі /shops',
+      '🔥 Кастомний конструктор букетів',
       '🔥 Управління запасами квітів',
-      '🔥 Варіанти обгортання для кастому',
-      'Детальна аналітика — доходи, популярні букети, тренди',
-      'Власні кольори та логотип — повністю ваш бренд',
-      'Пріоритетна підтримка — відповідаємо першочергово',
+      '🔥 Варіанти обгортання',
+      'Детальна аналітика',
+      'Власні кольори та логотип',
+      'Пріоритетна підтримка',
     ],
     limitations: [],
   },
 ]
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function getPlanConfig(slug: string | null | undefined): PlanConfig {
   const fallback = PLANS[0]

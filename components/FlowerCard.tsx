@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { ShoppingBag } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import OrderModal from './OrderModal'
 
 interface Flower {
@@ -13,33 +16,17 @@ interface Flower {
   description: string | null
 }
 
+const availabilityConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'muted' }> = {
+  in_stock:     { label: 'В наявності', variant: 'success' },
+  limited:      { label: 'Мало',        variant: 'warning' },
+  out_of_stock: { label: 'Немає',       variant: 'muted'   },
+}
+
 export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId: string }) {
   const [showOrderModal, setShowOrderModal] = useState(false)
 
   const isUnavailable = flower.availability === 'out_of_stock'
-
-  const getAvailabilityBadge = () => {
-    if (flower.availability === 'in_stock') {
-      return (
-        <span className="inline-block bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full">
-          В наявності
-        </span>
-      )
-    } else if (flower.availability === 'limited') {
-      return (
-        <span className="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-full">
-          Мало
-        </span>
-      )
-    } else if (isUnavailable) {
-      return (
-        <span className="inline-block bg-gray-100 text-gray-500 text-xs font-bold px-2.5 py-1 rounded-full">
-          Немає
-        </span>
-      )
-    }
-    return null
-  }
+  const avail = availabilityConfig[flower.availability] ?? availabilityConfig['in_stock']
 
   return (
     <>
@@ -62,28 +49,30 @@ export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId:
 
         {/* Content */}
         <div className="p-4">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="text-lg font-black text-gray-900 leading-snug">{flower.name}</h3>
-            {getAvailabilityBadge()}
+          <div className="flex justify-between items-start mb-2 gap-2">
+            <h3 className="text-base font-bold text-gray-900 leading-snug">{flower.name}</h3>
+            <Badge variant={avail.variant} className="flex-shrink-0">{avail.label}</Badge>
           </div>
 
           {flower.description && (
-            <p className="text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">
+            <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-2">
               {flower.description}
             </p>
           )}
 
           <div className="flex items-center justify-between gap-3 mt-3">
-            <p className="text-2xl font-black text-pink-600">
+            <p className="text-2xl font-bold text-pink-600">
               ₴{flower.price.toFixed(0)}
             </p>
-            <button
+            <Button
               onClick={() => !isUnavailable && setShowOrderModal(true)}
               disabled={isUnavailable}
-              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:from-pink-600 hover:to-purple-700 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"
+              size="sm"
+              className="flex-shrink-0"
             >
+              <ShoppingBag className="h-4 w-4" />
               {isUnavailable ? 'Немає' : 'Замовити'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

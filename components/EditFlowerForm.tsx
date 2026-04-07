@@ -2,6 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 interface EditFlowerFormProps {
   flower: {
@@ -37,7 +42,6 @@ export default function EditFlowerForm({ flower }: EditFlowerFormProps) {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
       const res = await fetch(`/api/flowers/${flower.id}`, {
         method: 'PATCH',
@@ -50,12 +54,8 @@ export default function EditFlowerForm({ flower }: EditFlowerFormProps) {
           description: form.description || null,
         }),
       })
-
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Помилка при збереженні')
-      }
-
+      if (!res.ok) throw new Error(data.error || 'Помилка при збереженні')
       router.push('/dashboard/flowers')
       router.refresh()
     } catch (err: any) {
@@ -71,67 +71,60 @@ export default function EditFlowerForm({ flower }: EditFlowerFormProps) {
       className="space-y-4 rounded-2xl bg-white p-6 shadow-sm border border-gray-100"
     >
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          ❌ {error}
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          {error}
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Назва букету *
-        </label>
-        <input
-          type="text"
+      <div className="space-y-1.5">
+        <Label htmlFor="name">Назва букету *</Label>
+        <Input
+          id="name"
           name="name"
           required
           value={form.name}
           onChange={handleChange}
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Ціна (₴) *
-        </label>
-        <input
-          type="number"
+      <div className="space-y-1.5">
+        <Label htmlFor="price">Ціна (₴) *</Label>
+        <Input
+          id="price"
           name="price"
+          type="number"
           min={0}
           step="1"
           required
           value={form.price}
           onChange={handleChange}
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors"
         />
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="text-xs text-muted-foreground">
           Ціну можна змінити будь-коли для акцій або знижок.
         </p>
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Посилання на фото
-        </label>
-        <input
-          type="url"
+      <div className="space-y-1.5">
+        <Label htmlFor="imageUrl">Посилання на фото</Label>
+        <Input
+          id="imageUrl"
           name="imageUrl"
+          type="url"
           value={form.imageUrl}
           onChange={handleChange}
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors"
           placeholder="https://example.com/buket.jpg"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Наявність *
-        </label>
+      <div className="space-y-1.5">
+        <Label htmlFor="availability">Наявність *</Label>
         <select
+          id="availability"
           name="availability"
           value={form.availability}
           onChange={handleChange}
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors"
+          className="flex h-11 w-full rounded-xl border border-input bg-gray-50 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors"
         >
           <option value="in_stock">В наявності</option>
           <option value="limited">Мало залишилось</option>
@@ -139,27 +132,25 @@ export default function EditFlowerForm({ flower }: EditFlowerFormProps) {
         </select>
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Опис
-        </label>
-        <textarea
+      <div className="space-y-1.5">
+        <Label htmlFor="description">Опис</Label>
+        <Textarea
+          id="description"
           name="description"
           rows={3}
           value={form.description}
           onChange={handleChange}
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors resize-none"
           placeholder="Деталі, розмір, для яких подій підходить..."
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-md active:scale-[0.98]"
-      >
-        {loading ? '⏳ Зберігаємо...' : '✅ Зберегти зміни'}
-      </button>
+      <Button type="submit" disabled={loading} className="w-full" size="lg">
+        {loading ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Зберігаємо...</>
+        ) : (
+          'Зберегти зміни'
+        )}
+      </Button>
     </form>
   )
 }

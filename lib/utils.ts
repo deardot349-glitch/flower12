@@ -1,11 +1,17 @@
+import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+/** Merge Tailwind classes safely — used by all shadcn/ui components */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 export function slugify(text: string): string {
-  // Transliteration map for Ukrainian/Russian characters
   const cyrillicMap: Record<string, string> = {
     'а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e','є':'ye','ж':'zh',
     'з':'z','и':'y','і':'i','ї':'yi','й':'y','к':'k','л':'l','м':'m','н':'n',
     'о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts',
     'ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya',
-    // Russian
     'ё':'yo','ъ':'','ы':'y','э':'e',
   }
   return text
@@ -25,14 +31,8 @@ export async function generateUniqueSlug(baseSlug: string): Promise<string> {
   let counter = 1
 
   while (true) {
-    const existing = await prisma.shop.findUnique({
-      where: { slug }
-    })
-
-    if (!existing) {
-      return slug
-    }
-
+    const existing = await prisma.shop.findUnique({ where: { slug } })
+    if (!existing) return slug
     slug = `${baseSlug}-${counter}`
     counter++
   }

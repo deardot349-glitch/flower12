@@ -2,6 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2, AlertCircle, CheckCircle2, Lock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 interface ShopSettingsFormProps {
   shop: {
@@ -28,22 +33,19 @@ export default function ShopSettingsForm({ shop, plan }: ShopSettingsFormProps) 
     workingHours: shop.workingHours || '',
   })
 
-  const disabled = !plan.allowProfileDetails
+  const isLocked = !plan.allowProfileDetails
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (disabled) return
+    if (isLocked) return
     setLoading(true)
     setError('')
     setSuccess(false)
-
     try {
       const res = await fetch('/api/shop', {
         method: 'PATCH',
@@ -54,12 +56,8 @@ export default function ShopSettingsForm({ shop, plan }: ShopSettingsFormProps) 
           workingHours: form.workingHours || null,
         }),
       })
-
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update shop')
-      }
-
+      if (!res.ok) throw new Error(data.error || 'Failed to update shop')
       setSuccess(true)
       router.refresh()
     } catch (err: any) {
@@ -72,83 +70,78 @@ export default function ShopSettingsForm({ shop, plan }: ShopSettingsFormProps) 
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl bg-white p-6 shadow-sm border border-gray-100 space-y-4"
+      className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4"
     >
-      {disabled && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 mb-2">
-          Profile details are available on higher plans. You can still run your shop,
-          but your public page will show a simpler layout. Upgrade to unlock a richer
-          shop profile.
+      {/* Plan lock banner */}
+      {isLocked && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <Lock className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <p>
+            Деталі профілю доступні на вищих планах. Оновіть план щоб розблокувати повний профіль магазину.
+          </p>
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-800">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           {error}
         </div>
       )}
 
       {success && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
-          Changes saved. Your public shop page has been updated.
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          Зміни збережено. Ваша сторінка магазину оновлена.
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Location
-        </label>
-        <input
-          type="text"
+      <div className="space-y-1.5">
+        <Label htmlFor="location">Місцезнаходження</Label>
+        <Input
+          id="location"
           name="location"
-          disabled={disabled}
+          disabled={isLocked}
           value={form.location}
           onChange={handleChange}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-400"
-          placeholder="Neighborhood, city, or address customers will recognize"
+          placeholder="Район, місто або адреса"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Working hours
-        </label>
-        <input
-          type="text"
+      <div className="space-y-1.5">
+        <Label htmlFor="workingHours">Години роботи</Label>
+        <Input
+          id="workingHours"
           name="workingHours"
-          disabled={disabled}
+          disabled={isLocked}
           value={form.workingHours}
           onChange={handleChange}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-400"
-          placeholder="e.g. Mon–Sat 9:00–19:00"
+          placeholder="напр. Пн–Сб 9:00–19:00"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          About your shop
-        </label>
-        <textarea
+      <div className="space-y-1.5">
+        <Label htmlFor="about">Про магазин</Label>
+        <Textarea
+          id="about"
           name="about"
           rows={4}
-          disabled={disabled}
+          disabled={isLocked}
           value={form.about}
           onChange={handleChange}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-400"
-          placeholder="Tell customers about your story, what you specialize in, and why they’ll love ordering from you."
+          placeholder="Розкажіть клієнтам про ваш магазин, спеціалізацію та чому варто замовляти у вас."
         />
       </div>
 
-      <div className="pt-2">
-        <button
-          type="submit"
-          disabled={disabled || loading}
-          className="inline-flex items-center rounded-lg bg-primary-600 px-5 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
-        >
-          {loading ? 'Saving…' : 'Save changes'}
-        </button>
+      <div className="pt-1">
+        <Button type="submit" disabled={isLocked || loading}>
+          {loading ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Зберігаємо...</>
+          ) : (
+            'Зберегти зміни'
+          )}
+        </Button>
       </div>
     </form>
   )
 }
-

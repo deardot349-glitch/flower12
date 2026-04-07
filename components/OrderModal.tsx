@@ -1,6 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 interface Flower {
   id: string
@@ -8,156 +16,129 @@ interface Flower {
   price: number
 }
 
-export default function OrderModal({
-  flower,
-  shopId,
-  onClose,
-}: {
+interface Props {
   flower: Flower
   shopId: string
   onClose: () => void
-}) {
+}
+
+export default function OrderModal({ flower, shopId, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [formData, setFormData] = useState({
-    customerName: '',
-    phone: '',
-    message: '',
-  })
+  const [formData, setFormData] = useState({ customerName: '', phone: '', message: '' })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopId,
-          flowerId: flower.id,
-          ...formData,
-        }),
+        body: JSON.stringify({ shopId, flowerId: flower.id, ...formData }),
       })
-
-      if (!response.ok) {
-        throw new Error('Помилка при відправці замовлення')
-      }
-
+      if (!response.ok) throw new Error()
       setSuccess(true)
       setTimeout(() => {
         onClose()
         setSuccess(false)
         setFormData({ customerName: '', phone: '', message: '' })
       }, 2500)
-    } catch (error) {
+    } catch {
+      // TODO: replace with toast once wired at page level
       alert('Не вдалося відправити замовлення. Спробуйте ще раз.')
     } finally {
       setLoading(false)
     }
   }
 
-  if (success) {
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <div className="text-6xl mb-4">✅</div>
-          <h2 className="text-2xl font-black text-gray-900 mb-2">Замовлення прийнято!</h2>
-          <p className="text-gray-500">Ми зв'яжемося з вами найближчим часом.</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center z-50"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="bg-white w-full max-w-md md:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden">
-        {/* Drag handle (mobile) */}
-        <div className="md:hidden flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 bg-gray-200 rounded-full"></div>
-        </div>
-
-        <div className="px-6 py-5">
-          <div className="flex justify-between items-center mb-5">
-            <div>
-              <h2 className="text-xl font-black text-gray-900">Замовити</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {flower.name} · <span className="font-bold text-pink-600">₴{flower.price.toFixed(0)}</span>
-              </p>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent>
+        {success ? (
+          <div className="px-6 py-10 text-center">
+            <div className="flex justify-center mb-4">
+              <CheckCircle2 className="h-14 w-14 text-green-500" strokeWidth={1.5} />
             </div>
-            <button
-              onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors active:scale-90 text-lg"
-            >
-              ✕
-            </button>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Замовлення прийнято!</h2>
+            <p className="text-sm text-muted-foreground">Ми зв'яжемося з вами найближчим часом.</p>
           </div>
+        ) : (
+          <div className="px-6 pb-6 pt-2">
+            <DialogHeader className="mb-5 pr-6">
+              <DialogTitle>Замовити</DialogTitle>
+              <DialogDescription>
+                {flower.name} ·{' '}
+                <span className="font-semibold text-pink-600">₴{flower.price.toFixed(0)}</span>
+              </DialogDescription>
+            </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Ім'я та прізвище *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.customerName}
-                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-base focus:outline-none focus:border-pink-400 transition-colors bg-gray-50"
-                placeholder="Ірина Ковальчук"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="customerName">Ім'я та прізвище *</Label>
+                <Input
+                  id="customerName"
+                  required
+                  value={formData.customerName}
+                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                  placeholder="Ірина Ковальчук"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Номер телефону *
-              </label>
-              <input
-                type="tel"
-                inputMode="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-base focus:outline-none focus:border-pink-400 transition-colors bg-gray-50"
-                placeholder="+380 99 123 45 67"
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Номер телефону *</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+380 99 123 45 67"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Побажання <span className="text-gray-400 font-normal">(необов'язково)</span>
-              </label>
-              <textarea
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm resize-none focus:outline-none focus:border-pink-400 transition-colors bg-gray-50"
-                rows={3}
-                placeholder="Текст на листівку, особливі побажання..."
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="message">
+                  Побажання{' '}
+                  <span className="text-muted-foreground font-normal">(необов'язково)</span>
+                </Label>
+                <Textarea
+                  id="message"
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  rows={3}
+                  placeholder="Текст на листівку, особливі побажання..."
+                />
+              </div>
 
-            <div className="flex gap-3 pt-1 pb-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-2xl font-bold active:scale-95 transition-all"
-              >
-                Скасувати
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-2xl font-bold hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-md active:scale-[0.98]"
-              >
-                {loading ? '⏳ Надсилаємо...' : '✅ Замовити'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+              <div className="flex gap-3 pt-2 pb-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={onClose}
+                >
+                  Скасувати
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-[2]"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Надсилаємо...
+                    </>
+                  ) : (
+                    'Замовити'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

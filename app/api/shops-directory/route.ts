@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Plans that are allowed to appear in the public directory
+const DIRECTORY_PLAN_SLUGS = ['basic', 'premium']
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -8,6 +11,10 @@ export async function GET(request: Request) {
 
     const where: Record<string, unknown> = {
       suspended: false,
+      // Only show shops whose plan allows directory listing
+      plan: { slug: { in: DIRECTORY_PLAN_SLUGS } },
+      // Respect the shop owner's opt-in toggle (default true if not set)
+      showInDirectory: { not: false },
     }
 
     if (city && city !== 'all') {
@@ -41,24 +48,33 @@ export async function GET(request: Request) {
         currency: true,
         plan: { select: { slug: true } },
         flowers: {
-          where: { availability: 'in_stock' },
-          select: { id: true, name: true, price: true, imageUrl: true },
+          where: { availability: { not: 'out_of_stock' } },
+          select: { id: true, name: true, price: true, imageUrl: true, availability: true },
           take: 4,
           orderBy: { createdAt: 'desc' },
         },
         _count: {
           select: {
-            flowers: { where: { availability: 'in_stock' } },
+            flowers: { where: { availability: { not: 'out_of_stock' } } },
             orders: { where: { status: 'completed' } },
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [
+        // Premium shops appear first
+        { plan: { slug: 'asc' } },
+        { createdAt: 'asc' },
+      ],
     })
 
-    // Collect all distinct cities for the filter dropdown
+    // Collect distinct cities from listed shops
     const allCities = await prisma.shop.findMany({
-      where: { suspended: false, city: { not: null } },
+      where: {
+        suspended: false,
+        city: { not: null },
+        plan: { slug: { in: DIRECTORY_PLAN_SLUGS } },
+        showInDirectory: { not: false },
+      },
       select: { city: true },
       distinct: ['city'],
     })
