@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Plans that are allowed to appear in the public directory
+// Only basic + premium plans appear in the public directory
 const DIRECTORY_PLAN_SLUGS = ['basic', 'premium']
 
 export async function GET(request: Request) {
@@ -13,8 +13,6 @@ export async function GET(request: Request) {
       suspended: false,
       // Only show shops whose plan allows directory listing
       plan: { slug: { in: DIRECTORY_PLAN_SLUGS } },
-      // Respect the shop owner's opt-in toggle (default true if not set)
-      showInDirectory: { not: false },
     }
 
     if (city && city !== 'all') {
@@ -60,11 +58,7 @@ export async function GET(request: Request) {
           },
         },
       },
-      orderBy: [
-        // Premium shops appear first
-        { plan: { slug: 'asc' } },
-        { createdAt: 'asc' },
-      ],
+      orderBy: { createdAt: 'asc' },
     })
 
     // Collect distinct cities from listed shops
@@ -73,7 +67,6 @@ export async function GET(request: Request) {
         suspended: false,
         city: { not: null },
         plan: { slug: { in: DIRECTORY_PLAN_SLUGS } },
-        showInDirectory: { not: false },
       },
       select: { city: true },
       distinct: ['city'],
