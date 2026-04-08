@@ -20,7 +20,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function TermsPage() {
   return (
-    <article>
+    <div>
       {/* Header */}
       <div className="mb-10 pb-8 border-b border-white/[0.06]">
         <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-3 py-1 text-xs font-medium text-purple-400 mb-4">
@@ -182,6 +182,6 @@ export default function TermsPage() {
           <p><span className="text-gray-500">Час відповіді:</span> до 10 робочих днів</p>
         </div>
       </Section>
-    </article>
+    </div>
   )
 }

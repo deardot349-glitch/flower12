@@ -45,7 +45,7 @@ function InfoCard({ icon, title, children }: { icon: string; title: string; chil
 
 export default function DataCompliancePage() {
   return (
-    <article>
+    <div>
       {/* Header */}
       <div className="mb-10 pb-8 border-b border-white/[0.06]">
         <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1 text-xs font-medium text-emerald-400 mb-4">
@@ -310,6 +310,6 @@ export default function DataCompliancePage() {
           </div>
         </div>
       </Section>
-    </article>
+    </div>
   )
 }
