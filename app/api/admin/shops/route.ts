@@ -109,7 +109,43 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { subscriptionId, action } = await request.json()
+    const body = await request.json()
+    const { subscriptionId, action } = body
+
+    // ── Change plan manually ───────────────────────────────────────────────
+    if (action === 'changePlan') {
+      const { shopId, planSlug } = body
+      if (!shopId || !planSlug) return NextResponse.json({ error: 'shopId and planSlug required' }, { status: 400 })
+
+      const plan = await prisma.plan.findUnique({ where: { slug: planSlug } })
+      if (!plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
+
+      const expiryDate = plan.durationDays > 0
+        ? new Date(Date.now() + plan.durationDays * 24 * 60 * 60 * 1000)
+        : null
+
+      await prisma.$transaction([
+        prisma.subscription.updateMany({
+          where: { shopId, status: 'active' },
+          data: { status: 'cancelled' },
+        }),
+        prisma.subscription.create({
+          data: {
+            shopId,
+            planId: plan.id,
+            status: 'active',
+            startDate: new Date(),
+            expiryDate,
+          },
+        }),
+        prisma.shop.update({
+          where: { id: shopId },
+          data: { planId: plan.id },
+        }),
+      ])
+
+      return NextResponse.json({ success: true, message: `План змінено на «${plan.name}»` })
+    }
 
     if (!subscriptionId || !['cancel', 'activate'].includes(action)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

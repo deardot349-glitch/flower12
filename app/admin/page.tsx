@@ -38,6 +38,16 @@ type Shop = {
   }>
 }
 
+type PlanInfo = { id: string; name: string; slug: string; price: number }
+
+type RevenueStats = {
+  totalRevenue: number
+  monthRevenue: number
+  byPlan: Record<string, { name: string; total: number; count: number }>
+  plans: PlanInfo[]
+  expiringSoon: number
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function planBadge(slug: string) {
@@ -58,6 +68,17 @@ function statusBadge(status: string) {
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('uk-UA', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function fmtMoney(n: number) {
+  return n.toLocaleString('uk-UA') + ' ₴'
+}
+
+function daysUntilExpiry(shop: Shop): number | null {
+  const activeSub = shop.subscriptions.find(s => s.status === 'active' && s.expiryDate)
+  if (!activeSub?.expiryDate) return null
+  const diff = new Date(activeSub.expiryDate).getTime() - Date.now()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
 // ── Login screen ──────────────────────────────────────────────────────────────
@@ -121,18 +142,56 @@ function Toast({ msg, type, onClose }: { msg: string; type: 'ok' | 'err'; onClos
   )
 }
 
+// ── Revenue bar ───────────────────────────────────────────────────────────────
+
+function RevenueBar({ stats }: { stats: RevenueStats }) {
+  const planEntries = Object.entries(stats.byPlan).filter(([slug]) => slug !== 'free')
+  return (
+    <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-2xl p-5 mb-6">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">💰 Доходи</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p className="text-2xl font-black text-gray-900">{fmtMoney(stats.totalRevenue)}</p>
+          <p className="text-xs text-gray-500 mt-0.5 font-medium">Всього зароблено</p>
+        </div>
+        <div>
+          <p className="text-2xl font-black text-green-600">{fmtMoney(stats.monthRevenue)}</p>
+          <p className="text-xs text-gray-500 mt-0.5 font-medium">Цього місяця</p>
+        </div>
+        {planEntries.map(([slug, { name, total, count }]) => (
+          <div key={slug}>
+            <p className={`text-2xl font-black ${slug === 'premium' ? 'text-purple-600' : 'text-blue-600'}`}>
+              {fmtMoney(total)}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5 font-medium">{name} · {count} оплат</p>
+          </div>
+        ))}
+        {planEntries.length === 0 && (
+          <div className="col-span-2">
+            <p className="text-sm text-gray-400 font-medium">Поки що немає схвалених оплат</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main admin panel ──────────────────────────────────────────────────────────
 
 export default function AdminPage() {
-  const [secret, setSecret]           = useState('')
-  const [payments, setPayments]       = useState<Payment[]>([])
-  const [shops, setShops]             = useState<Shop[]>([])
-  const [loading, setLoading]         = useState(false)
-  const [tab, setTab]                 = useState<'payments' | 'shops'>('payments')
-  const [search, setSearch]           = useState('')
-  const [expanded, setExpanded]       = useState<string | null>(null)
-  const [toast, setToast]             = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [secret, setSecret]             = useState('')
+  const [payments, setPayments]         = useState<Payment[]>([])
+  const [shops, setShops]               = useState<Shop[]>([])
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
+  const [loading, setLoading]           = useState(false)
+  const [tab, setTab]                   = useState<'payments' | 'shops'>('payments')
+  const [search, setSearch]             = useState('')
+  const [expanded, setExpanded]         = useState<string | null>(null)
+  const [toast, setToast]               = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Shop | null>(null)
+  const [copiedEmail, setCopiedEmail]   = useState<string | null>(null)
+  const [changingPlan, setChangingPlan] = useState<string | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState('')
 
   const notify = (msg: string, type: 'ok' | 'err' = 'ok') => setToast({ msg, type })
 
@@ -140,14 +199,17 @@ export default function AdminPage() {
     setLoading(true)
     try {
       const headers = { Authorization: `Bearer ${sk}` }
-      const [pr, sr] = await Promise.all([
+      const [pr, sr, str] = await Promise.all([
         fetch('/api/admin/payments', { headers }),
         fetch('/api/admin/shops',    { headers }),
+        fetch('/api/admin/stats',    { headers }),
       ])
-      const pd = await pr.json()
-      const sd = await sr.json()
+      const pd  = await pr.json()
+      const sd  = await sr.json()
+      const std = await str.json()
       if (pd.payments) setPayments(pd.payments)
       if (sd.shops)    setShops(sd.shops)
+      if (std.plans)   setRevenueStats(std)
     } catch { notify('Помилка завантаження', 'err') }
     finally { setLoading(false) }
   }, [])
@@ -191,6 +253,15 @@ export default function AdminPage() {
     finally { setLoading(false) }
   }
 
+  const changePlanAction = async (shopId: string, planSlug: string) => {
+    setLoading(true)
+    try {
+      const d = await api('/api/admin/shops', { method: 'PATCH', body: JSON.stringify({ shopId, action: 'changePlan', planSlug }) })
+      notify(d.message); setChangingPlan(null); fetchAll(secret)
+    } catch (e: any) { notify(e.message, 'err') }
+    finally { setLoading(false) }
+  }
+
   const deleteShop = async (shop: Shop) => {
     setLoading(true)
     try {
@@ -200,6 +271,35 @@ export default function AdminPage() {
     finally { setLoading(false) }
   }
 
+  const copyEmail = (email: string) => {
+    navigator.clipboard.writeText(email).catch(() => {})
+    setCopiedEmail(email)
+    setTimeout(() => setCopiedEmail(null), 2000)
+  }
+
+  const exportCSV = () => {
+    const rows = [
+      ['Назва', 'Email', 'План', 'Квіти', 'Замовлення', 'Статус', 'Зареєстровано'],
+      ...shops.map(s => [
+        `"${s.name}"`,
+        s.owner.email,
+        s.plan.name,
+        s._count.flowers,
+        s._count.orders,
+        s.suspended ? 'Заблоковано' : 'Активний',
+        fmtDate(s.createdAt),
+      ]),
+    ]
+    const csv = rows.map(r => r.join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `flowergoua-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (!secret) return <LoginScreen onLogin={handleLogin} />
 
   const filtered = shops.filter(s =>
@@ -207,8 +307,8 @@ export default function AdminPage() {
     s.owner.email.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalActive  = shops.filter(s => s.subscriptions.some(sub => sub.status === 'active')).length
-  const totalPending = payments.length
+  const totalActive    = shops.filter(s => s.subscriptions.some(sub => sub.status === 'active')).length
+  const totalPending   = payments.length
   const totalSuspended = shops.filter(s => s.suspended).length
 
   return (
@@ -264,12 +364,16 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Stat icon="🏪" label="Всього магазинів"   value={shops.length}   color="bg-pink-50" />
-          <Stat icon="✅" label="Активні підписки"   value={totalActive}    color="bg-green-50" />
-          <Stat icon="⏳" label="Очікують оплати"    value={totalPending}   color="bg-amber-50" />
-          <Stat icon="🚫" label="Заблоковані"        value={totalSuspended} color="bg-red-50" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+          <Stat icon="🏪" label="Всього магазинів"   value={shops.length}                       color="bg-pink-50" />
+          <Stat icon="✅" label="Активні підписки"   value={totalActive}                        color="bg-green-50" />
+          <Stat icon="⏳" label="Очікують оплати"    value={totalPending}                       color="bg-amber-50" />
+          <Stat icon="🚫" label="Заблоковані"        value={totalSuspended}                     color="bg-red-50" />
+          <Stat icon="⚠️" label="Закінчуються скоро" value={revenueStats?.expiringSoon ?? 0}    color="bg-orange-50" />
         </div>
+
+        {/* Revenue bar */}
+        {revenueStats && <RevenueBar stats={revenueStats} />}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-5">
@@ -301,7 +405,6 @@ export default function AdminPage() {
               {payments.map(p => (
                 <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    {/* Shop info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-bold text-gray-900">{p.subscription.shop.name}</span>
@@ -309,10 +412,14 @@ export default function AdminPage() {
                           {p.subscription.plan.name}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400">{p.subscription.shop.owner.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-400">{p.subscription.shop.owner.email}</p>
+                        <button onClick={() => copyEmail(p.subscription.shop.owner.email)}
+                          className="text-gray-300 hover:text-pink-400 transition-colors text-xs" title="Копіювати email">
+                          {copiedEmail === p.subscription.shop.owner.email ? '✅' : '📋'}
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Payment details */}
                     <div className="flex items-center gap-6 text-sm">
                       <div>
                         <p className="text-xs text-gray-400">Сума</p>
@@ -328,8 +435,6 @@ export default function AdminPage() {
                         <p className="font-medium text-gray-700">{fmtDate(p.createdAt)}</p>
                       </div>
                     </div>
-
-                    {/* Actions */}
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => paymentAction(p.id, 'approve')} disabled={loading}
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-colors">
@@ -350,17 +455,27 @@ export default function AdminPage() {
         {/* ══ SHOPS TAB ══ */}
         {tab === 'shops' && (
           <div>
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="🔍 Пошук за назвою або email..."
-              className="w-full mb-4 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-pink-400 outline-none shadow-sm" />
+            {/* Search + Export */}
+            <div className="flex gap-3 mb-4">
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="🔍 Пошук за назвою або email..."
+                className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-pink-400 outline-none shadow-sm" />
+              <button onClick={exportCSV}
+                className="flex items-center gap-2 text-xs bg-white border border-gray-200 hover:border-pink-300 text-gray-600 px-4 py-2.5 rounded-xl font-bold transition-colors shadow-sm whitespace-nowrap">
+                📥 Експорт CSV
+              </button>
+            </div>
 
             <div className="space-y-3">
               {filtered.map(shop => {
-                const isOpen = expanded === shop.id
-                const activeSub = shop.subscriptions.find(s => s.status === 'active')
+                const isOpen  = expanded === shop.id
+                const days    = daysUntilExpiry(shop)
+                const isWarning = days !== null && days <= 14
 
                 return (
-                  <div key={shop.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${shop.suspended ? 'border-red-200' : 'border-gray-100'}`}>
+                  <div key={shop.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${
+                    shop.suspended ? 'border-red-200' : isWarning ? 'border-orange-200' : 'border-gray-100'
+                  }`}>
 
                     {/* Row */}
                     <div className="flex items-center gap-3 p-4">
@@ -380,9 +495,22 @@ export default function AdminPage() {
                           <span className="font-bold text-gray-900 text-sm">{shop.name}</span>
                           {shop.suspended && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">🚫 Заблоковано</span>}
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${planBadge(shop.plan.slug)}`}>{shop.plan.name}</span>
+                          {/* Expiry warning badge */}
+                          {isWarning && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                              days !== null && days <= 3 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              ⏰ {days !== null && days <= 0 ? 'Закінчилась' : `${days}д до кінця`}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3 mt-0.5">
+                        <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-400">{shop.owner.email}</span>
+                          {/* Copy email */}
+                          <button onClick={() => copyEmail(shop.owner.email)}
+                            className="text-gray-300 hover:text-pink-400 transition-colors text-xs" title="Копіювати email">
+                            {copiedEmail === shop.owner.email ? '✅' : '📋'}
+                          </button>
                           <span className="text-xs text-gray-300">·</span>
                           <span className="text-xs text-gray-400">💐 {shop._count.flowers}</span>
                           <span className="text-xs text-gray-400">📦 {shop._count.orders}</span>
@@ -426,6 +554,38 @@ export default function AdminPage() {
                               🗑️ Видалити назавжди
                             </button>
                           </div>
+                        </div>
+
+                        {/* Change plan */}
+                        <div>
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Змінити план</p>
+                          {changingPlan === shop.id ? (
+                            <div className="flex gap-2 items-center flex-wrap">
+                              <select value={selectedPlan} onChange={e => setSelectedPlan(e.target.value)}
+                                className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:border-pink-400 outline-none bg-white">
+                                <option value="">Оберіть план...</option>
+                                {revenueStats?.plans.map(p => (
+                                  <option key={p.slug} value={p.slug}>
+                                    {p.name} {p.price > 0 ? `— ${fmtMoney(p.price)}/міс` : '— безкоштовно'}
+                                  </option>
+                                ))}
+                              </select>
+                              <button onClick={() => selectedPlan && changePlanAction(shop.id, selectedPlan)}
+                                disabled={!selectedPlan || loading}
+                                className="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-purple-700 disabled:opacity-50 transition-colors">
+                                Застосувати
+                              </button>
+                              <button onClick={() => setChangingPlan(null)}
+                                className="text-xs text-gray-400 hover:text-gray-600 px-3 py-2 transition-colors">
+                                Скасувати
+                              </button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setChangingPlan(shop.id); setSelectedPlan('') }}
+                              className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-200 transition-colors">
+                              🔄 Змінити план
+                            </button>
+                          )}
                         </div>
 
                         {/* Subscriptions */}
