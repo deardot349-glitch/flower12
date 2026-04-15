@@ -53,11 +53,18 @@ export async function POST(request: Request) {
     if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
     const planConfig = getPlanConfig(shop.plan.slug)
-    if (!planConfig.allowDeliveryZones) {
-      return NextResponse.json(
-        { error: `Зони доставки недоступні на плані «${planConfig.name}». Перейдіть на Базовий або Преміум план.` },
-        { status: 403 }
-      )
+
+    // Check zone count limit before creating
+    const maxZones = planConfig.maxDeliveryZones ?? 1
+    if (maxZones !== -1) {
+      const count = await prisma.deliveryZone.count({ where: { shopId: shop.id } })
+      if (count >= maxZones) {
+        const limitLabel = maxZones === 1 ? '1 зону' : `${maxZones} зон`
+        return NextResponse.json(
+          { error: `Ваш план дозволяє максимум ${limitLabel} доставки. Перейдіть на Базовий або Преміум для більшої кількості.` },
+          { status: 403 }
+        )
+      }
     }
 
     const body = await request.json()

@@ -12,6 +12,7 @@ export interface PlanConfig {
   allowProfileDetails: boolean
   allowTelegram: boolean
   allowDeliveryZones: boolean
+  maxDeliveryZones: number   // -1 = unlimited
   allowAnalytics: boolean
   allowCustomColors: boolean
   allowCoverPhoto: boolean
@@ -42,7 +43,8 @@ export const PLANS: PlanConfig[] = [
 
     allowProfileDetails: true,
     allowTelegram: false,
-    allowDeliveryZones: false,
+    allowDeliveryZones: true,   // all plans can set a delivery fee
+    maxDeliveryZones: 1,        // free = 1 zone only
     allowAnalytics: false,
     allowCustomColors: false,
     allowCoverPhoto: false,
@@ -83,6 +85,7 @@ export const PLANS: PlanConfig[] = [
     allowProfileDetails: true,
     allowTelegram: true,
     allowDeliveryZones: true,
+    maxDeliveryZones: 10,
     allowAnalytics: false,
     allowCustomColors: false,
     allowCoverPhoto: true,
@@ -124,6 +127,7 @@ export const PLANS: PlanConfig[] = [
     allowProfileDetails: true,
     allowTelegram: true,
     allowDeliveryZones: true,
+    maxDeliveryZones: -1,
     allowAnalytics: true,
     allowCustomColors: true,
     allowCoverPhoto: true,

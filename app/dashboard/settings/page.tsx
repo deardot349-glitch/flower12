@@ -65,20 +65,27 @@ function PlanLockBanner({ feature, requiredPlan }: { feature: string; requiredPl
   )
 }
 
-function DeliveryCitiesSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const selected = value ? value.split(',').map(c => c.trim()).filter(Boolean) : []
-  const toggle = (city: string) => {
-    const next = selected.includes(city) ? selected.filter(c => c !== city) : [...selected, city]
-    onChange(next.join(', '))
+function DeliveryCitiesInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [inputVal, setInputVal] = useState('')
+  const cities = value ? value.split(',').map(c => c.trim()).filter(Boolean) : []
+
+  const add = (city: string) => {
+    const trimmed = city.trim()
+    if (!trimmed || cities.includes(trimmed)) { setInputVal(''); return }
+    onChange([...cities, trimmed].join(', '))
+    setInputVal('')
   }
+  const remove = (city: string) => onChange(cities.filter(c => c !== city).join(', '))
+
   return (
     <div>
-      {selected.length > 0 && (
+      {/* Tags */}
+      {cities.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
-          {selected.map(city => (
+          {cities.map(city => (
             <span key={city} className="flex items-center gap-1.5 bg-pink-100 text-pink-800 text-xs font-bold px-3 py-1.5 rounded-full">
               📍 {city}
-              <button type="button" onClick={() => toggle(city)} className="ml-0.5 text-pink-400 hover:text-pink-700 font-black leading-none">×</button>
+              <button type="button" onClick={() => remove(city)} className="ml-0.5 text-pink-400 hover:text-pink-700 font-black leading-none">×</button>
             </span>
           ))}
           <button type="button" onClick={() => onChange('')}
@@ -87,19 +94,31 @@ function DeliveryCitiesSelector({ value, onChange }: { value: string; onChange: 
           </button>
         </div>
       )}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-        {UA_CITIES.map(city => {
-          const active = selected.includes(city)
-          return (
-            <button key={city} type="button" onClick={() => toggle(city)}
-              className={`text-left text-xs px-3 py-2 rounded-xl border-2 font-medium transition-all ${
-                active ? 'border-pink-400 bg-pink-50 text-pink-800' : 'border-gray-200 bg-white text-gray-600 hover:border-pink-300'
-              }`}>
-              {active ? '✓ ' : ''}{city}
-            </button>
-          )
-        })}
+      {/* Free-text input with suggestions */}
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            list="delivery-cities-list"
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); add(inputVal) }
+              if (e.key === ',' && inputVal.trim()) { e.preventDefault(); add(inputVal) }
+            }}
+            placeholder="Напишіть місто..."
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all"
+          />
+          <datalist id="delivery-cities-list">
+            {UA_CITIES.filter(c => !cities.includes(c)).map(c => <option key={c} value={c} />)}
+          </datalist>
+        </div>
+        <button type="button" onClick={() => add(inputVal)} disabled={!inputVal.trim()}
+          className="px-4 py-2.5 bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white rounded-xl text-sm font-bold transition-colors">
+          + Додати
+        </button>
       </div>
+      <p className="text-xs text-gray-400 mt-1.5">Натисніть Enter або кому щоб додати місто. Можна ввести будь-яку назву, не тільки зі списку.</p>
     </div>
   )
 }
@@ -361,10 +380,17 @@ export default function SettingsPage() {
                       </select>
                     </Field>
                     <Field label="📍 Місто магазину" hint="Клієнти зможуть знайти ваш магазин у каталозі по місту">
-                      <select value={shopData.city} onChange={e => set('city', e.target.value)} className={inputCls}>
-                        <option value="">Оберіть місто...</option>
-                        {UA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      <input
+                        type="text"
+                        list="cities-list"
+                        value={shopData.city}
+                        onChange={e => set('city', e.target.value)}
+                        className={inputCls}
+                        placeholder="наприклад: Луцьк"
+                      />
+                      <datalist id="cities-list">
+                        {UA_CITIES.map(c => <option key={c} value={c} />)}
+                      </datalist>
                       {shopData.city && (
                         <div className="mt-2 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
                           <span>✅</span>
@@ -577,8 +603,8 @@ export default function SettingsPage() {
                     <SectionTitle icon="🚚" title="Налаштування доставки" subtitle="Міста доставки та умови замовлень" />
                     <div>
                       <p className="text-sm font-semibold text-gray-700 mb-1">📍 Міста доставки</p>
-                      <p className="text-xs text-gray-400 mb-3">Оберіть міста, в які ви доставляєте.</p>
-                      <DeliveryCitiesSelector value={shopData.deliveryTimeEstimate} onChange={v => set('deliveryTimeEstimate', v)} />
+                      <p className="text-xs text-gray-400 mb-3">Оберіть міста або райони, в які ви доставляєте. Можна ввести будь-яке місто.</p>
+                      <DeliveryCitiesInput value={shopData.deliveryTimeEstimate} onChange={v => set('deliveryTimeEstimate', v)} />
                     </div>
                     <hr className="border-gray-100" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
