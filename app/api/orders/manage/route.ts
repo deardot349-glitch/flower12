@@ -74,6 +74,27 @@ export async function PATCH(request: Request) {
       data: { status },
     })
 
+    // ── Deduct stock when order is completed ──────────────────────────────────
+    // Parse customBouquet JSON and decrement stockCount for each flower used.
+    // Only fires once: previous status must NOT already be 'completed'.
+    if (status === 'completed' && order.status !== 'completed' && order.customBouquet) {
+      try {
+        const bouquet = JSON.parse(order.customBouquet as string)
+        const flowers: Array<{ id: string; quantity: number }> = bouquet.flowers || []
+        await Promise.all(
+          flowers.map(f =>
+            prisma.stockFlower.updateMany({
+              where: { id: f.id, shopId: user.shop!.id },
+              data: { stockCount: { decrement: f.quantity } },
+            })
+          )
+        )
+      } catch (stockErr) {
+        console.error('Stock deduction failed:', stockErr)
+        // Non-fatal — order is already marked completed
+      }
+    }
+
     if (user.shop.telegramChatId) {
       try {
         const label    = STATUS_LABELS_UA[status] || status
