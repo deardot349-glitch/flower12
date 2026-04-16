@@ -297,7 +297,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-5 md:py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Налаштування магазину</h1>
           <p className="text-gray-500 text-sm mt-1">Повністю налаштуйте вигляд та роботу вашого магазину</p>
@@ -314,10 +314,24 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar */}
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* ── Desktop sidebar tabs ── */}
           <div className="lg:w-56 flex-shrink-0">
-            <div className="bg-white rounded-2xl shadow-sm p-2 flex flex-row lg:flex-col gap-1 overflow-x-auto">
+            {/* Mobile: select dropdown */}
+            <div className="lg:hidden">
+              <select
+                value={activeTab}
+                onChange={e => setActiveTab(e.target.value as Tab)}
+                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-800 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none shadow-sm">
+                {tabs.map(tab => (
+                  <option key={tab.id} value={tab.id}>
+                    {tab.icon} {tab.label}{tab.badge ? ` (${tab.badge})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Desktop: sidebar */}
+            <div className="hidden lg:block bg-white rounded-2xl shadow-sm p-2">
               {tabs.map(tab => (
                 <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap w-full text-left ${
@@ -338,7 +352,7 @@ export default function SettingsPage() {
           {/* Content */}
           <div className="flex-1">
             <form onSubmit={handleSubmit}>
-              <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm p-4 md:p-6 space-y-5 md:space-y-6">
 
                 {/* ══ GENERAL ══ */}
                 {activeTab === 'general' && (
@@ -538,41 +552,39 @@ export default function SettingsPage() {
                 {activeTab === 'hours' && (
                   <>
                     <SectionTitle icon="🕐" title="Години роботи" subtitle="Розклад на кожен день тижня" />
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {DAYS.map(day => {
                         const hours = weeklyHours[day] || defaultDayHours
                         return (
-                          <div key={day} className={`flex items-center gap-4 p-4 rounded-xl border ${hours.closed ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-200'}`}>
-                            <div className="w-28 flex-shrink-0">
+                          <div key={day} className={`rounded-xl border p-3 ${hours.closed ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-200'}`}>
+                            <div className="flex items-center justify-between mb-2">
                               <span className={`font-semibold text-sm ${hours.closed ? 'text-gray-400' : 'text-gray-700'}`}>{DAY_LABELS[day]}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400">{hours.closed ? 'Зачинено' : 'Відкрито'}</span>
+                                <button type="button"
+                                  onClick={() => setWeeklyHours(p => ({ ...p, [day]: { ...p[day], closed: !hours.closed } }))}
+                                  className={`relative w-10 h-5 rounded-full transition-colors ${hours.closed ? 'bg-gray-300' : 'bg-green-500'}`}>
+                                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${hours.closed ? 'left-0.5' : 'left-5'}`} />
+                                </button>
+                              </div>
                             </div>
-                            {hours.closed ? (
-                              <div className="flex-1 text-sm text-gray-400 italic">Зачинено</div>
-                            ) : (
-                              <div className="flex items-center gap-3 flex-1 flex-wrap">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-xs text-gray-500">Відкр.</span>
+                            {!hours.closed && (
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1.5 flex-1">
+                                  <span className="text-xs text-gray-500 w-12">Відкр.</span>
                                   <input type="time" value={hours.open}
                                     onChange={e => setWeeklyHours(p => ({ ...p, [day]: { ...p[day], open: e.target.value } }))}
-                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:border-pink-400 focus:outline-none" />
+                                    className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:border-pink-400 focus:outline-none" />
                                 </div>
-                                <span className="text-gray-400">—</span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-xs text-gray-500">Закр.</span>
+                                <span className="text-gray-400 text-sm">—</span>
+                                <div className="flex items-center gap-1.5 flex-1">
+                                  <span className="text-xs text-gray-500 w-12">Закр.</span>
                                   <input type="time" value={hours.close}
                                     onChange={e => setWeeklyHours(p => ({ ...p, [day]: { ...p[day], close: e.target.value } }))}
-                                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:border-pink-400 focus:outline-none" />
+                                    className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:border-pink-400 focus:outline-none" />
                                 </div>
                               </div>
                             )}
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <button type="button"
-                                onClick={() => setWeeklyHours(p => ({ ...p, [day]: { ...p[day], closed: !hours.closed } }))}
-                                className={`relative w-10 h-5 rounded-full transition-colors ${hours.closed ? 'bg-gray-300' : 'bg-green-500'}`}>
-                                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${hours.closed ? 'left-0.5' : 'left-5'}`} />
-                              </button>
-                              <span className="text-xs text-gray-400 w-12">{hours.closed ? 'Зачин.' : 'Відкр.'}</span>
-                            </div>
                           </div>
                         )
                       })}
@@ -853,16 +865,15 @@ export default function SettingsPage() {
 
               {/* Save bar */}
               {activeTab !== 'danger' && (
-                <div className="mt-4 flex items-center gap-4 bg-white rounded-2xl shadow-sm px-6 py-4">
+                <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-4">
                   <button type="submit" disabled={loading || uploading !== null}
-                    className="px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-md text-sm">
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 transition-all shadow-md text-sm">
                     {loading ? 'Зберігаємо...' : '💾 Зберегти зміни'}
                   </button>
                   <button type="button" onClick={fetchShopData} disabled={loading}
-                    className="px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors disabled:opacity-50 text-sm">
+                    className="w-full sm:w-auto px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors disabled:opacity-50 text-sm">
                     Скинути
                   </button>
-                  <p className="text-sm text-gray-400 ml-auto hidden sm:block">Зміни застосовуються одразу</p>
                 </div>
               )}
             </form>

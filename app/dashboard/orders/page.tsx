@@ -274,9 +274,39 @@ export default function OrdersPage() {
                 {isExpanded && (
                   <div className="border-t border-gray-100">
 
-                    {/* Visual pipeline (skip for cancelled) */}
+                    {/* Mobile pipeline — compact status strip */}
                     {order.status !== 'cancelled' && (
-                      <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
+                      <div className="sm:hidden px-4 py-3 bg-gray-50 border-b border-gray-100">
+                        <div className="flex items-center gap-1.5">
+                          {PIPELINE.map((s, i) => {
+                            const scfg = STATUS_CONFIG[s]
+                            const done = pipelineIdx > i
+                            const active = pipelineIdx === i
+                            return (
+                              <div key={s} className="flex items-center gap-1">
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs border-2 flex-shrink-0"
+                                  style={{
+                                    background: (done || active) ? cfg.color : 'white',
+                                    borderColor: (done || active) ? cfg.color : '#e5e7eb',
+                                    color: (done || active) ? 'white' : '#d1d5db',
+                                  }}>
+                                  {done ? '✓' : scfg.icon}
+                                </div>
+                                {i < PIPELINE.length - 1 && (
+                                  <div className="w-2 h-0.5 rounded-full flex-shrink-0"
+                                    style={{ background: pipelineIdx > i ? cfg.color : '#e5e7eb' }} />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <p className="text-xs font-semibold mt-1.5" style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</p>
+                      </div>
+                    )}
+
+                    {/* Visual pipeline — hidden on mobile, too cramped */}
+                    {order.status !== 'cancelled' && (
+                      <div className="hidden sm:block px-5 py-4 bg-gray-50 border-b border-gray-100">
                         <div className="flex items-center">
                           {PIPELINE.map((s, i) => {
                             const scfg   = STATUS_CONFIG[s]
@@ -366,7 +396,7 @@ export default function OrdersPage() {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="px-5 pb-5 flex flex-wrap gap-2">
+                    <div className="px-4 md:px-5 pb-4 md:pb-5 flex flex-wrap gap-2">
                       {nextStatuses.map(nextStatus => (
                         <button key={nextStatus}
                           onClick={() => updateStatus(order.id, nextStatus)}

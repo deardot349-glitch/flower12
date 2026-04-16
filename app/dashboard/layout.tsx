@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/LogoutButton'
 import SidebarNav from '@/components/SidebarNav'
+import MobileBottomNav from '@/components/MobileBottomNav'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -68,20 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 px-2 py-2 flex justify-around">
-        {[
-          { href: '/dashboard', icon: '🏠', label: 'Головна' },
-          { href: '/dashboard/assortment', icon: '🌸', label: 'Асортимент' },
-          { href: '/dashboard/orders', icon: '📦', label: 'Замовлення' },
-          { href: '/dashboard/settings', icon: '⚙️', label: 'Налаштування' },
-        ].map(item => (
-          <Link key={item.href} href={item.href}
-            className="flex flex-col items-center gap-0.5 px-3 py-1 text-gray-500 hover:text-pink-600 transition-colors">
-            <span className="text-lg">{item.icon}</span>
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </Link>
-        ))}
-      </div>
+      <MobileBottomNav />
 
       {/* ── Page content ── */}
       <main className="flex-1 md:ml-60 xl:ml-64 pt-0 md:pt-0 mt-14 md:mt-0 mb-16 md:mb-0 min-h-screen">
