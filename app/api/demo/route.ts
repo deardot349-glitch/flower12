@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   // ── User & shop ────────────────────────────────────────────────────────────
   const existing = await prisma.shop.findUnique({ where: { slug: DEMO_SLUG }, include: { owner: true } })
 
-  let shop = existing
+  let shop: { id: string; slug: string } | null = existing
   if (!existing) {
     const emailExists = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } })
     const passwordHash = await bcrypt.hash('demo-password-not-for-login', 10)
