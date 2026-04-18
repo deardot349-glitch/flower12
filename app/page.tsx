@@ -113,13 +113,13 @@ export default async function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
             <Link href="/signup"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-semibold text-sm transition-all shadow-xl shadow-pink-500/25">
-              Створити магазин безкоштовно
+              Спробувати 14 днів безкоштовно
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
             </Link>
-            <a href="#how-it-works"
+            <Link href="/demo"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold text-sm transition-all">
-              Як це працює
-            </a>
+              👁 Переглянути приклад магазину
+            </Link>
           </div>
 
           <div className="flex items-center justify-center gap-3">
@@ -442,9 +442,12 @@ export default async function Home() {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
               Прозорі ціни, без сюрпризів
             </h2>
-            <p className="text-gray-500">
-              Починайте безкоштовно. Оновлюйте коли готові. Без контрактів.
+            <p className="text-gray-500 mb-4">
+              Починайте з <strong className="text-pink-600">14-денного безкоштовного трайлу Преміум</strong> — без картки.
             </p>
+            <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 text-sm font-semibold px-4 py-2 rounded-full">
+              ✅ Картка не потрібна · Без авто-продовження · Скасуйте коли захочете
+            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
@@ -465,6 +468,11 @@ export default async function Home() {
                   <div className="flex items-baseline gap-1 mb-1">
                     <span className={`text-3xl font-bold ${plan.highlight ? 'text-white' : 'text-gray-900'}`}>{plan.priceLabel}</span>
                   </div>
+                  {plan.slug === 'free' && (
+                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full mb-2">
+                      🎉 14 днів Преміум безкоштовно
+                    </div>
+                  )}
                   <p className={`text-sm ${plan.highlight ? 'text-gray-400' : 'text-gray-500'}`}>{plan.tagline}</p>
                 </div>
                 <ul className="space-y-3 flex-1 mb-7">

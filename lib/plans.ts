@@ -5,6 +5,7 @@ export interface PlanConfig {
   name: string
   price: number
   priceLabel: string
+  monthlyEquivalent?: string   // shown when annual is highlighted
   tagline: string
   durationDays: number
   maxBouquets: number
@@ -76,8 +77,8 @@ export const PLANS: PlanConfig[] = [
   {
     slug: 'basic',
     name: 'Базовий',
-    price: 900,
-    priceLabel: '900 грн / міс',
+    price: 490,
+    priceLabel: '490 грн / міс',
     tagline: 'Для магазинів що активно ростуть.',
     durationDays: 30,
     maxBouquets: 40,
@@ -118,8 +119,8 @@ export const PLANS: PlanConfig[] = [
   {
     slug: 'premium',
     name: 'Преміум',
-    price: 2000,
-    priceLabel: '2000 грн / міс',
+    price: 990,
+    priceLabel: '990 грн / міс',
     tagline: 'Повний контроль для серйозного бізнесу.',
     durationDays: 30,
     maxBouquets: 999,

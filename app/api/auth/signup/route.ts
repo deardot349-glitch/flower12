@@ -106,9 +106,10 @@ export async function POST(request: Request) {
     await ensurePlans()
 
     // Fetch plans
-    const [selectedPlan, freePlan] = await Promise.all([
+    const [selectedPlan, freePlan, premiumPlan] = await Promise.all([
       prisma.plan.findUnique({ where: { slug: selectedPlanConfig.slug } }),
       prisma.plan.findUnique({ where: { slug: 'free' } }),
+      prisma.plan.findUnique({ where: { slug: 'premium' } }),
     ])
 
     if (!selectedPlan || !freePlan) {
@@ -126,12 +127,12 @@ export async function POST(request: Request) {
       data: {
         email:         email.toLowerCase().trim(),
         passwordHash,
-        emailVerified: true, // auto-verify on signup — no email gate
+        emailVerified: true,
         shop: {
           create: {
             name:     shopName.trim(),
             slug,
-            planId:   freePlan.id, // always start on free
+            planId:   freePlan.id, // will be updated to premium below
             location: location?.trim() || null,
             about:    about?.trim() || null,
             workingHours: workingHours?.trim() || null,
@@ -140,6 +141,26 @@ export async function POST(request: Request) {
       },
       include: { shop: true },
     })
+
+    // ── 14-day free Premium trial for every new signup ─────────────────────
+    if (user.shop && premiumPlan) {
+      const trialExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      await prisma.$transaction([
+        prisma.subscription.create({
+          data: {
+            shopId:     user.shop.id,
+            planId:     premiumPlan.id,
+            status:     'active',
+            startDate:  new Date(),
+            expiryDate: trialExpiry,
+          },
+        }),
+        prisma.shop.update({
+          where: { id: user.shop.id },
+          data:  { planId: premiumPlan.id },
+        }),
+      ])
+    }
 
     // If paid plan selected, create subscription + MINIMAL payment record
     if (selectedPlanConfig.price > 0 && user.shop) {
@@ -179,7 +200,7 @@ export async function POST(request: Request) {
       success: true,
       message: isPaid
         ? 'Акаунт створено! Оплату буде перевірено протягом 24 год — після цього план активується.'
-        : 'Акаунт створено! Тепер можна увійти.',
+        : 'Акаунт створено! У вас активовано безкоштовний трайл Преміум на 14 днів. Увійдіть та налаштуйте магазин!',
       user: { id: user.id, email: user.email, shopSlug: user.shop?.slug },
     })
   } catch (error: any) {
