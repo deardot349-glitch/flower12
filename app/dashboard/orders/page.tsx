@@ -395,22 +395,22 @@ export default function OrdersPage() {
                       )}
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="px-4 md:px-5 pb-4 md:pb-5 flex flex-wrap gap-2">
+                    {/* Action buttons — grid on mobile so they never overflow */}
+                    <div className="px-4 pb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:pb-5">
                       {nextStatuses.map(nextStatus => (
                         <button key={nextStatus}
                           onClick={() => updateStatus(order.id, nextStatus)}
                           disabled={isUpdating}
-                          className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md disabled:opacity-50 transition-all active:scale-95 hover:brightness-95"
+                          className="flex items-center justify-center gap-1.5 text-white px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-sm disabled:opacity-50 transition-all active:scale-95"
                           style={{ background: STATUS_CONFIG[nextStatus]?.color ?? '#374151' }}>
-                          {isUpdating ? '⏳ ...' : (NEXT_LABEL[nextStatus] ?? `→ ${STATUS_CONFIG[nextStatus]?.label}`)}
+                          {isUpdating ? '⏳' : (NEXT_LABEL[nextStatus] ?? `→ ${STATUS_CONFIG[nextStatus]?.label}`)}
                         </button>
                       ))}
 
                       {canCancel && (
                         <button onClick={() => updateStatus(order.id, 'cancelled')}
                           disabled={isUpdating}
-                          className="bg-red-50 text-red-700 border border-red-200 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-100 disabled:opacity-50 transition-colors active:scale-95">
+                          className="flex items-center justify-center gap-1 bg-red-50 text-red-700 border border-red-200 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold hover:bg-red-100 disabled:opacity-50 transition-colors active:scale-95">
                           ❌ Скасувати
                         </button>
                       )}
@@ -418,18 +418,19 @@ export default function OrdersPage() {
                       {order.status === 'cancelled' && (
                         <button onClick={() => updateStatus(order.id, 'pending')}
                           disabled={isUpdating}
-                          className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95">
+                          className="flex items-center justify-center col-span-2 sm:col-span-1 bg-gray-100 text-gray-700 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95">
                           ↩️ Відновити
                         </button>
                       )}
 
+                      {/* Contact buttons — always full row on mobile */}
                       <a href={`tel:${order.phone}`}
-                        className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-                        📞 Зателефонувати
+                        className="flex items-center justify-center gap-1.5 col-span-1 bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-gray-50 transition-colors">
+                        📞 Зателеф
                       </a>
                       <a href={`https://wa.me/${order.phone.replace(/\D/g, '')}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="bg-green-50 border border-green-200 text-green-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-100 transition-colors">
+                        className="flex items-center justify-center gap-1.5 col-span-1 bg-green-50 border border-green-200 text-green-700 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-green-100 transition-colors">
                         💬 WhatsApp
                       </a>
                     </div>

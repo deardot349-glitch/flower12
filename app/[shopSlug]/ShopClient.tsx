@@ -141,7 +141,8 @@ export default function ShopClient({ shop }: { shop: Shop }) {
     setShowModal(true)
     setCurrentStep(1)
     setDeliveryMethod(null)
-    setSelectedZone(null)
+    // Auto-select single zone so fee is always applied
+    setSelectedZone(shop.deliveryZones?.length === 1 ? shop.deliveryZones[0] : null)
     setSubmitStatus('idle')
   }
 
@@ -828,17 +829,25 @@ export default function ShopClient({ shop }: { shop: Shop }) {
 
                         {deliveryMethod === 'delivery' && (shop.deliveryZones?.length ?? 0) > 0 && (
                           <div className="space-y-2">
-                            <p className="text-sm font-semibold text-gray-700">Зона доставки</p>
-                            {shop.deliveryZones.map((zone, i) => (
-                              <button key={i} onClick={() => setSelectedZone(zone)}
-                                className="w-full flex items-center justify-between px-4 py-3 border-2 rounded-xl transition-all text-sm"
-                                style={selectedZone?.id === zone.id
-                                  ? { borderColor: primary, background: `${primary}0c` }
-                                  : { borderColor: '#e5e7eb' }}>
-                                <span className="font-medium text-gray-800">{zone.name}</span>
-                                <span className="font-bold" style={{ color: primary }}>+{currencySymbol}{zone.fee}</span>
-                              </button>
-                            ))}
+                            {shop.deliveryZones.length === 1 ? (
+                              // Single zone: auto-selected, show as info
+                              <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+                                <span className="text-gray-700 font-medium">🚚 {shop.deliveryZones[0].name}</span>
+                                <span className="font-bold" style={{ color: primary }}>+{currencySymbol}{shop.deliveryZones[0].fee}</span>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-sm font-semibold text-gray-700">Зона доставки</p>
+                                {shop.deliveryZones.map((zone, i) => (
+                                  <button key={i} onClick={() => setSelectedZone(zone)}
+                                    className="w-full flex items-center justify-between px-4 py-3 border-2 rounded-xl transition-all text-sm"
+                                    style={selectedZone?.id === zone.id ? { borderColor: primary, background: `${primary}0c` } : { borderColor: '#e5e7eb' }}>
+                                    <span className="font-medium text-gray-800">{zone.name}</span>
+                                    <span className="font-bold" style={{ color: primary }}>+{currencySymbol}{zone.fee}</span>
+                                  </button>
+                                ))}
+                              </>
+                            )}
                           </div>
                         )}
 

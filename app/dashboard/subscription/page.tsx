@@ -32,11 +32,11 @@ function TrialBanner({ expiryDate }: { expiryDate: string }) {
           <div className={`text-2xl ${urgent ? 'animate-bounce' : ''}`}>{urgent ? '⚠️' : '🎉'}</div>
           <div>
             <p className={`font-bold text-sm ${urgent ? 'text-red-800' : 'text-emerald-800'}`}>
-              {urgent ? 'Трайл закінчується скоро!' : 'Безкоштовний трайл Преміум активно'}
+              {urgent ? 'Трайл закінчується скоро!' : '14-денний трайл Преміум — активно'}
             </p>
             <p className={`text-xs mt-0.5 ${urgent ? 'text-red-600' : 'text-emerald-600'}`}>
               {daysLeft > 0
-                ? `Залишилось ${daysLeft} днів — після цього магазин перейде на безкоштовний план`
+                ? `Залишилось ${daysLeft} із 14 днів — після цього магазин перейде на безкоштовний план`
                 : 'Трайл закінчився — оплатіть щоб продовжити користуватись всіми функціями'}
             </p>
           </div>

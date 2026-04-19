@@ -122,7 +122,7 @@ export default async function DashboardPage() {
             </span>
             <div>
               <p className={`text-sm font-bold ${trialDaysLeft <= 3 ? 'text-red-800' : 'text-emerald-800'}`}>
-                {trialDaysLeft <= 3 ? `Трайл закінчується через ${trialDaysLeft} днів!` : `Безкоштовний трайл Преміум`}
+                {trialDaysLeft <= 3 ? `Трайл закінчується через ${trialDaysLeft} днів!` : `14-денний трайл Преміум`}
               </p>
               <p className={`text-xs ${trialDaysLeft <= 3 ? 'text-red-600' : 'text-emerald-600'}`}>
                 {trialDaysLeft > 0 ? `Залишилось ${trialDaysLeft} із 14 днів — оберіть план щоб продовжити` : 'Трайл закінчився'}
