@@ -2,6 +2,66 @@
 
 import { useState, useEffect } from 'react'
 import { PLANS } from '@/lib/plans'
+import Link from 'next/link'
+
+function TrialBanner({ expiryDate }: { expiryDate: string }) {
+  const [daysLeft, setDaysLeft] = useState(0)
+  const [hoursLeft, setHoursLeft] = useState(0)
+
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(expiryDate).getTime() - Date.now()
+      setDaysLeft(Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24))))
+      setHoursLeft(Math.max(0, Math.ceil((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))))
+    }
+    calc()
+    const t = setInterval(calc, 60000)
+    return () => clearInterval(t)
+  }, [expiryDate])
+
+  const urgent = daysLeft <= 3
+
+  return (
+    <div className={`rounded-2xl p-4 mb-6 border-2 ${
+      urgent
+        ? 'bg-red-50 border-red-300'
+        : 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-300'
+    }`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className={`text-2xl ${urgent ? 'animate-bounce' : ''}`}>{urgent ? '⚠️' : '🎉'}</div>
+          <div>
+            <p className={`font-bold text-sm ${urgent ? 'text-red-800' : 'text-emerald-800'}`}>
+              {urgent ? 'Трайл закінчується скоро!' : 'Безкоштовний трайл Преміум активно'}
+            </p>
+            <p className={`text-xs mt-0.5 ${urgent ? 'text-red-600' : 'text-emerald-600'}`}>
+              {daysLeft > 0
+                ? `Залишилось ${daysLeft} днів — після цього магазин перейде на безкоштовний план`
+                : 'Трайл закінчився — оплатіть щоб продовжити користуватись всіми функціями'}
+            </p>
+          </div>
+        </div>
+        {/* Countdown blocks */}
+        <div className="flex items-center gap-2">
+          <div className={`text-center px-3 py-2 rounded-xl ${urgent ? 'bg-red-100' : 'bg-white border border-emerald-200'}`}>
+            <p className={`text-2xl font-black tabular-nums ${urgent ? 'text-red-700' : 'text-emerald-700'}`}>{daysLeft}</p>
+            <p className={`text-[10px] font-semibold ${urgent ? 'text-red-500' : 'text-emerald-500'}`}>днів</p>
+          </div>
+          <span className={urgent ? 'text-red-400' : 'text-emerald-400'}>·</span>
+          <div className={`text-center px-3 py-2 rounded-xl ${urgent ? 'bg-red-100' : 'bg-white border border-emerald-200'}`}>
+            <p className={`text-2xl font-black tabular-nums ${urgent ? 'text-red-700' : 'text-emerald-700'}`}>{hoursLeft}</p>
+            <p className={`text-[10px] font-semibold ${urgent ? 'text-red-500' : 'text-emerald-500'}`}>годин</p>
+          </div>
+        </div>
+      </div>
+      {urgent && daysLeft > 0 && (
+        <p className={`text-xs mt-3 font-medium ${urgent ? 'text-red-700' : 'text-emerald-700'}`}>
+          ↓ Оберіть план нижче щоб не втратити доступ до функцій Преміум
+        </p>
+      )}
+    </div>
+  )
+}
 
 export default function SubscriptionPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('')
@@ -10,6 +70,7 @@ export default function SubscriptionPage() {
   const [success, setSuccess] = useState('')
   const [subscriptions, setSubscriptions] = useState<any[]>([])
   const [currentPlanSlug, setCurrentPlanSlug] = useState<string>('free')
+  const [trialExpiry, setTrialExpiry] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     cardNumber: '',
@@ -35,7 +96,14 @@ export default function SubscriptionPage() {
     try {
       const res = await fetch('/api/subscriptions')
       const data = await res.json()
-      if (data.subscriptions) setSubscriptions(data.subscriptions)
+      if (data.subscriptions) {
+        setSubscriptions(data.subscriptions)
+        // Detect trial: active premium subscription with no payment
+        const trial = data.subscriptions.find((s: any) =>
+          s.status === 'active' && s.plan?.slug === 'premium' && !s.payment && s.expiryDate
+        )
+        if (trial) setTrialExpiry(trial.expiryDate)
+      }
     } catch {}
   }
 
@@ -82,12 +150,12 @@ export default function SubscriptionPage() {
   const planEmoji: Record<string, string> = { free: '🌱', basic: '🌸', premium: '🌺' }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-5 md:py-8 overflow-x-hidden">
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Підписка</h1>
-        <p className="text-gray-500 mt-1">Оберіть план для вашого магазину</p>
+      <div className="mb-5 md:mb-8">
+        <h1 className="text-xl md:text-3xl font-bold text-gray-900">Підписка</h1>
+        <p className="text-gray-500 text-sm mt-1">Оберіть план для вашого магазину</p>
       </div>
 
       {/* Current plan badge */}
@@ -113,6 +181,9 @@ export default function SubscriptionPage() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">{error}</div>}
       {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 text-sm">{success}</div>}
+
+      {/* Trial banner */}
+      {trialExpiry && <TrialBanner expiryDate={trialExpiry} />}
 
       {/* What you get callout */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-5 mb-8 flex items-start gap-4">

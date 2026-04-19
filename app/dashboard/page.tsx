@@ -20,6 +20,12 @@ export default async function DashboardPage() {
       orders: { orderBy: { createdAt: 'desc' } },
       plan: true,
       stockFlowers: true,
+      subscriptions: {
+        where: { status: 'active' },
+        include: { plan: true, payment: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
   })
 
@@ -37,6 +43,13 @@ export default async function DashboardPage() {
   const confirmedRevenue = shop.orders
     .filter(o => o.status === 'completed')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+
+  // Trial detection: active premium sub with no payment = trial
+  const activeSub = shop.subscriptions[0]
+  const isTrial = activeSub && activeSub.plan?.slug === 'premium' && !(activeSub as any).payment && activeSub.expiryDate
+  const trialDaysLeft = isTrial
+    ? Math.max(0, Math.ceil((new Date(activeSub.expiryDate!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null
 
   const currencySymbol =
     shop.currency === 'UAH' ? '₴' :
@@ -72,7 +85,7 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 xl:p-8 max-w-7xl mx-auto overflow-x-hidden">
 
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -94,6 +107,41 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Trial banner */}
+      {trialDaysLeft !== null && (
+        <Link href="/dashboard/subscription"
+          className={`flex items-center justify-between gap-4 px-4 py-3 rounded-2xl mb-4 transition-all ${
+            trialDaysLeft <= 3
+              ? 'bg-red-50 border-2 border-red-300 hover:bg-red-100'
+              : 'bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 hover:border-emerald-300'
+          }`}>
+          <div className="flex items-center gap-3">
+            <span className={`text-xl ${trialDaysLeft <= 3 ? 'animate-bounce' : ''}`}>
+              {trialDaysLeft <= 3 ? '⚠️' : '🎉'}
+            </span>
+            <div>
+              <p className={`text-sm font-bold ${trialDaysLeft <= 3 ? 'text-red-800' : 'text-emerald-800'}`}>
+                {trialDaysLeft <= 3 ? `Трайл закінчується через ${trialDaysLeft} днів!` : `Безкоштовний трайл Преміум`}
+              </p>
+              <p className={`text-xs ${trialDaysLeft <= 3 ? 'text-red-600' : 'text-emerald-600'}`}>
+                {trialDaysLeft > 0 ? `Залишилось ${trialDaysLeft} із 14 днів — оберіть план щоб продовжити` : 'Трайл закінчився'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className={`text-center px-2.5 py-1.5 rounded-xl ${
+              trialDaysLeft <= 3 ? 'bg-red-100' : 'bg-white border border-emerald-200'
+            }`}>
+              <p className={`text-lg font-black tabular-nums leading-tight ${trialDaysLeft <= 3 ? 'text-red-700' : 'text-emerald-700'}`}>{trialDaysLeft}</p>
+              <p className={`text-[9px] font-bold ${trialDaysLeft <= 3 ? 'text-red-500' : 'text-emerald-500'}`}>днів</p>
+            </div>
+            <svg className={`w-4 h-4 ${trialDaysLeft <= 3 ? 'text-red-400' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

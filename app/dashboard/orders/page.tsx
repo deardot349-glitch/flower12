@@ -155,7 +155,7 @@ export default function OrdersPage() {
   ]
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-5xl overflow-x-hidden">
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-xl text-white text-sm font-bold transition-all ${

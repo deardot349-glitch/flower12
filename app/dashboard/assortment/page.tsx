@@ -73,20 +73,22 @@ function SectionHeader({ icon, title, subtitle, count, onAdd, addLabel }: {
   onAdd: () => void; addLabel: string
 }) {
   return (
-    <div className="flex items-center justify-between mb-5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-pink-100 to-purple-100 rounded-xl flex items-center justify-center text-xl">{icon}</div>
-        <div>
-          <h2 className="font-black text-gray-900 text-lg">
+    <div className="flex items-center justify-between mb-5 gap-3">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-pink-100 to-purple-100 rounded-xl flex items-center justify-center text-lg md:text-xl flex-shrink-0">{icon}</div>
+        <div className="min-w-0">
+          <h2 className="font-black text-gray-900 text-base md:text-lg truncate">
             {title}
-            <span className="ml-2 text-sm font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{count}</span>
+            <span className="ml-1.5 text-xs font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{count}</span>
           </h2>
-          <p className="text-xs text-gray-400">{subtitle}</p>
+          <p className="text-xs text-gray-400 hidden sm:block">{subtitle}</p>
         </div>
       </div>
       <button onClick={onAdd}
-        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl text-sm font-bold hover:from-pink-600 hover:to-purple-700 transition-all shadow-md">
-        ➕ {addLabel}
+        className="flex items-center gap-1.5 px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl text-xs md:text-sm font-bold hover:from-pink-600 hover:to-purple-700 transition-all shadow-md flex-shrink-0">
+        <span className="text-base leading-none">+</span>
+        <span className="hidden sm:inline">{addLabel}</span>
+        <span className="sm:hidden">Додати</span>
       </button>
     </div>
   )
@@ -440,7 +442,7 @@ export default function AssortmentPage() {
 
   if (pageLoading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-5 md:py-8 overflow-x-hidden">
         <div className="mb-8">
           <div className="h-9 w-48 bg-gray-200 rounded-xl animate-pulse mb-2" />
           <div className="h-4 w-72 bg-gray-100 rounded-xl animate-pulse" />
@@ -458,11 +460,11 @@ export default function AssortmentPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-5 md:py-8 overflow-x-hidden">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-gray-900">Асортимент</h1>
-        <p className="text-gray-500 mt-1">Керуйте букетами, квітками, упаковкою та кастом речами</p>
+      <div className="mb-5 md:mb-8">
+        <h1 className="text-xl md:text-3xl font-black text-gray-900">Асортимент</h1>
+        <p className="text-gray-500 text-sm mt-1 hidden sm:block">Керуйте букетами, квітками, упаковкою та кастом речами</p>
       </div>
 
       {error && (
