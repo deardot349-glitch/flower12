@@ -193,23 +193,63 @@ export default function OrdersPage() {
         />
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-        {FILTER_TABS.map(({ key, label, count }) => (
-          <button key={key} onClick={() => setFilter(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              filter === key
-                ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
-                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}>
-            {label}
-            {count > 0 && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-black ${
-                filter === key ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-700'
-              }`}>{count}</span>
-            )}
-          </button>
-        ))}
+      {/* Filter tabs — 2-row grid on mobile so nothing overflows */}
+      <div className="mb-5">
+        {/* Mobile: 4-tab primary row + secondary row */}
+        <div className="grid grid-cols-4 gap-1.5 sm:hidden mb-1.5">
+          {FILTER_TABS.slice(0, 4).map(({ key, label, count }) => (
+            <button key={key} onClick={() => setFilter(key)}
+              className={`px-2 py-2 rounded-xl text-xs font-bold text-center transition-all ${
+                filter === key
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-600'
+              }`}>
+              <span className="block">{label.split(' ')[0]}</span>
+              <span className="block truncate leading-tight">{label.split(' ').slice(1).join(' ')}</span>
+              {count > 0 && (
+                <span className={`text-[10px] font-black mt-0.5 inline-block ${
+                  filter === key ? 'text-white/80' : 'text-gray-400'
+                }`}>{count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+          {FILTER_TABS.slice(4).map(({ key, label, count }) => (
+            <button key={key} onClick={() => setFilter(key)}
+              className={`px-2 py-2 rounded-xl text-xs font-bold text-center transition-all ${
+                filter === key
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-600'
+              }`}>
+              <span className="block">{label.split(' ')[0]}</span>
+              <span className="block truncate leading-tight">{label.split(' ').slice(1).join(' ')}</span>
+              {count > 0 && (
+                <span className={`text-[10px] font-black mt-0.5 inline-block ${
+                  filter === key ? 'text-white/80' : 'text-gray-400'
+                }`}>{count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        {/* Desktop: horizontal flex row */}
+        <div className="hidden sm:flex gap-2 overflow-x-auto pb-1">
+          {FILTER_TABS.map(({ key, label, count }) => (
+            <button key={key} onClick={() => setFilter(key)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                filter === key
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+              {label}
+              {count > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-black ${
+                  filter === key ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>{count}</span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Orders list */}

@@ -55,14 +55,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </aside>
 
       {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 px-4 h-14 flex items-center justify-between shadow-sm">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 border-b border-white/10 px-4 h-14 flex items-center justify-between shadow-sm"
+        style={{ background: 'linear-gradient(135deg, #1e1b4b, #4c1d95)' }}>
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-sm">🌸</div>
-          <span className="font-bold text-gray-900 text-sm">FlowerGoUa</span>
+          <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-sm">🌸</div>
+          <span className="font-bold text-white text-sm">FlowerGoUa</span>
         </Link>
         {shopSlug && (
           <Link href={`/${shopSlug}`} target="_blank"
-            className="text-xs text-pink-600 font-semibold px-3 py-1.5 bg-pink-50 rounded-lg">
+            className="text-xs text-white/80 font-semibold px-3 py-1.5 bg-white/15 rounded-lg border border-white/20">
             Магазин →
           </Link>
         )}

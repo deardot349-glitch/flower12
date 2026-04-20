@@ -222,111 +222,133 @@ export default function ShopClient({ shop }: { shop: Shop }) {
 
       {/* ━━━ HERO COVER ━━━ */}
       <div className="relative">
-        {/* Cover image — warm, bright overlay not dark */}
-        <div className="relative overflow-hidden" style={{ height: 'clamp(220px, 45vw, 380px)' }}>
+        <div className="relative overflow-hidden" style={{ height: 'clamp(200px, 42vw, 340px)' }}>
           {shop.coverImageUrl ? (
             <>
               <Image src={shop.coverImageUrl} alt={shop.name} fill
                 className="object-cover" priority sizes="100vw" />
-              {/* Soft warm gradient — not black */}
               <div className="absolute inset-0"
-                style={{ background: `linear-gradient(to bottom, transparent 30%, ${primary}22 70%, ${primary}44 100%)` }} />
+                style={{ background: `linear-gradient(to bottom, transparent 40%, ${primary}20 80%, ${primary}38 100%)` }} />
             </>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center"
               style={{ background: `linear-gradient(135deg, ${primary}18, ${accent}28)` }}>
-              <div className="text-center">
-                <div className="text-8xl mb-3 opacity-30">🌸</div>
-              </div>
+              <span className="text-7xl opacity-25">🌸</span>
             </div>
           )}
         </div>
 
-        {/* ── Shop identity card ── */}
+        {/* ── Shop identity ── */}
         <div className="bg-white">
-          <div className="max-w-3xl mx-auto px-4 md:px-8">
-            <div className="flex items-start gap-4 -mt-8 pb-5 pt-0">
-              {/* Logo */}
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex-shrink-0 overflow-hidden shadow-xl border-[3px] border-white relative"
+          <div className="px-4 md:px-8 max-w-3xl mx-auto">
+            {/* Logo + Name — compact, no dead horizontal space */}
+            <div className="flex items-center gap-3 -mt-8 mb-3">
+              <div className="w-[64px] h-[64px] rounded-2xl flex-shrink-0 overflow-hidden shadow-xl border-[3px] border-white relative"
                 style={{ background: `linear-gradient(135deg, ${primary}20, ${accent}20)` }}>
                 {shop.logoUrl
                   ? <Image src={shop.logoUrl} alt="Логотип" fill className="object-cover" />
-                  : <div className="absolute inset-0 flex items-center justify-center text-2xl md:text-3xl font-bold" style={{ color: primary }}>
+                  : <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold" style={{ color: primary }}>
                       {shop.name.charAt(0).toUpperCase()}
                     </div>
                 }
               </div>
-
-              <div className="flex-1 min-w-0 pt-9 md:pt-10">
-                <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight mb-1.5">{shop.name}</h1>
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Open/closed badge */}
-                  {workingStatus.label && (
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      workingStatus.open
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-gray-50 text-gray-500 border border-gray-200'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${workingStatus.open ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                      {workingStatus.label}
-                    </span>
-                  )}
-                  {/* Same-day delivery */}
-                  {shop.sameDayDelivery && (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                      ⚡ Доставка сьогодні
-                    </span>
-                  )}
-                  {/* Location */}
-                  {shop.showLocation && shop.location && (
-                    <button onClick={openGoogleMaps}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      {shop.location}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Track order link */}
-              <div className="flex-shrink-0 pt-10 md:pt-11">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold text-gray-900 leading-tight">{shop.name}</h1>
                 <a href={`/${shop.slug}/track-order`}
-                  className="text-xs font-semibold px-3 py-2 rounded-xl border transition-all hover:bg-gray-50"
-                  style={{ color: primary, borderColor: `${primary}40` }}>
-                  Замовлення
+                  className="inline-flex items-center gap-1 text-[11px] font-medium mt-0.5 hover:opacity-70 transition-opacity"
+                  style={{ color: primary }}>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Мої замовлення
                 </a>
               </div>
             </div>
+
+            {/* Badges — compact, all in one row */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {workingStatus.label && (
+                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  workingStatus.open
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-gray-50 text-gray-500 border border-gray-200'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${workingStatus.open ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                  {workingStatus.label}
+                </span>
+              )}
+              {shop.sameDayDelivery && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                  ⚡ Доставка сьогодні
+                </span>
+              )}
+              {shop.showLocation && shop.location && (
+                <button onClick={openGoogleMaps}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {shop.location}
+                </button>
+              )}
+            </div>
+
+            {/* About — part of identity, not floating paragraph */}
+            {shop.about && (
+              <div className="mb-4 rounded-xl flex gap-2.5 px-4 py-3"
+                style={{ background: `${primary}07`, border: `1px solid ${primary}18` }}>
+                <div className="w-0.5 rounded-full self-stretch flex-shrink-0" style={{ minWidth: '2px',
+                  background: `linear-gradient(to bottom, ${primary}, ${accent})` }} />
+                <p className="text-sm text-gray-600 leading-relaxed">{shop.about}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ━━━ ABOUT ━━━ */}
-      {shop.about && (
-        <div className="border-t border-gray-50">
-          <div className="max-w-3xl mx-auto px-4 md:px-8 py-4">
-            <p className="text-gray-500 text-sm leading-relaxed">{shop.about}</p>
-          </div>
-        </div>
-      )}
-
       {/* ━━━ CUSTOM BOUQUET BANNER ━━━ */}
       {shop.allowCustomBouquet && (
-        <div className="max-w-3xl mx-auto px-4 md:px-8 mb-2 mt-4">
-          <div className="relative overflow-hidden rounded-2xl p-5 flex items-center justify-between gap-4"
-            style={{ background: `linear-gradient(135deg, ${primary}12, ${accent}18)`, border: `1px solid ${primary}20` }}>
-            <div>
-              <p className="text-xs font-semibold mb-0.5" style={{ color: primary }}>Ексклюзивна послуга</p>
-              <h3 className="text-base font-bold text-gray-900">Власний букет</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Оберіть квіти й упаковку на власний смак</p>
+        <div className="max-w-3xl mx-auto px-4 md:px-8 mb-5">
+          <a href={`/${shop.slug}/custom-bouquet`}
+            className="block relative overflow-hidden rounded-2xl active:scale-[0.98] transition-all"
+            style={{ background: `linear-gradient(135deg, ${primary}09, ${accent}11)`, border: `2px solid ${primary}20` }}>
+
+            <div className="p-4">
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: primary }}>✨ Ексклюзивна послуга</p>
+                  <h3 className="text-base font-black text-gray-900 leading-tight">Власний букет</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Оберіть квіти, упаковку і додатки на смак</p>
+                </div>
+                <div className="btn-primary text-white text-xs font-bold px-4 py-2.5 rounded-xl flex-shrink-0 shadow-md">
+                  Скласти →
+                </div>
+              </div>
+
+              {/* Builder preview — looks like the actual UI */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { emoji: '🌹', label: 'Троянда', count: '×3' },
+                  { emoji: '🌷', label: 'Тюльпан', count: '×2' },
+                  { emoji: '🌸', label: 'Мімоза', count: '×1' },
+                  { emoji: '🎁', label: 'Крафт', count: 'упак.' },
+                ].map((item, i) => (
+                  <div key={i}
+                    className="flex items-center gap-1.5 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-800 shadow-sm"
+                    style={{ border: `1px solid ${primary}18` }}>
+                    <span className="text-sm">{item.emoji}</span>
+                    <span>{item.label}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                      style={{ background: primary }}>{item.count}</span>
+                  </div>
+                ))}
+                <div className="flex items-center text-xs text-gray-400 font-medium px-1">
+                  +ще...
+                </div>
+              </div>
             </div>
-            <a href={`/${shop.slug}/custom-bouquet`}
-              className="btn-primary flex-shrink-0 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md">
-              Створити →
-            </a>
-          </div>
+          </a>
         </div>
       )}
 

@@ -96,8 +96,8 @@ export default function MobileBottomNav() {
 
       {/* ── Bottom bar ── */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10"
+        style={{ background: 'linear-gradient(135deg, #1e1b4b, #4c1d95)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex justify-around items-stretch px-1">
           {NAV_ITEMS.map(item => {

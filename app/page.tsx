@@ -280,7 +280,7 @@ export default async function Home() {
       </section>
 
       {/* ===== FEATURES ===== */}
-      <section id="features" className="bg-white">
+      <section id="features" className="bg-gray-50">
         <div className="max-w-6xl mx-auto px-5 py-20 md:py-28">
           <div className="text-center mb-16">
             <p className="text-xs font-semibold text-pink-600 uppercase tracking-widest mb-3">Можливості</p>
@@ -295,7 +295,7 @@ export default async function Home() {
           {/* Big feature cards — 2 wide + 4 small */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Large card 1 */}
-            <div className="md:col-span-2 bg-gray-950 rounded-3xl p-8 flex flex-col justify-between min-h-[240px] relative overflow-hidden group">
+            <div className="md:col-span-2 bg-gray-900 rounded-3xl p-8 flex flex-col justify-between min-h-[240px] relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-pink-600/10 rounded-full blur-[60px] group-hover:bg-pink-600/15 transition-colors pointer-events-none" />
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-pink-500/20 border border-pink-500/20 flex items-center justify-center text-pink-400 mb-5">
@@ -436,7 +436,7 @@ export default async function Home() {
       </section>
 
       {/* ===== PRICING ===== */}
-      <section id="pricing" className="bg-white">
+      <section id="pricing" className="bg-gray-50">
         <div className="max-w-6xl mx-auto px-5 py-20 md:py-28">
           <div className="text-center mb-16">
             <p className="text-xs font-semibold text-pink-600 uppercase tracking-widest mb-3">Тарифи</p>
