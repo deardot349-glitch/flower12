@@ -117,7 +117,7 @@ export async function PUT(request: Request) {
         showInstagram: body.showInstagram ?? true,
         showLocation: body.showLocation ?? true,
 
-        // Custom bouquet toggle (only premium can enable it)
+        // Custom bouquet toggle — only Бізнес (premium) plan can enable it
         allowCustomBouquet: planConfig.allowCustomBouquet
           ? (body.allowCustomBouquet ?? true)
           : false,

@@ -48,7 +48,7 @@ const CONTACT_FIELDS = [
 const inputCls = 'w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all'
 
 function PlanLockBanner({ feature, requiredPlan }: { feature: string; requiredPlan: 'basic' | 'premium' }) {
-  const label = requiredPlan === 'basic' ? 'Базовий або Преміум' : 'Преміум'
+  const label = requiredPlan === 'basic' ? 'Про або Бізнес' : 'Бізнес'
   return (
     <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
       <span className="text-xl">🔒</span>
@@ -282,7 +282,7 @@ export default function SettingsPage() {
     { id: 'delivery',   label: 'Доставка',      icon: '🚚' },
     { id: 'orders',     label: 'Замовлення',    icon: '📦' },
     { id: 'seo',        label: 'SEO',           icon: '🔍' },
-    { id: 'telegram',   label: 'Telegram',      icon: '✈️', badge: plan.allowTelegram ? undefined : 'PRO' },
+    { id: 'telegram',   label: 'Telegram',      icon: '✈️', badge: plan.allowTelegram ? undefined : 'ПРО' },
     { id: 'danger',     label: 'Небезпека',     icon: '⚠️' },
   ]
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Only basic + premium plans appear in the public directory
+// basic (Про) + premium (Бізнес) plans appear in the public directory
 const DIRECTORY_PLAN_SLUGS = ['basic', 'premium']
 
 export async function GET(request: Request) {

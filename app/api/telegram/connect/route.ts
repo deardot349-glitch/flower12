@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const planConfig = getPlanConfig(user.shop.plan.slug)
     if (!planConfig.allowTelegram) {
       return NextResponse.json(
-        { error: 'Telegram notifications are not available on the Free plan. Upgrade to Basic or Premium to use this feature.' },
+        { error: 'Telegram сповіщення недоступні на плані Старт. Перейдіть на Про або Бізнес щоб використовувати цю функцію.' },
         { status: 403 }
       )
     }

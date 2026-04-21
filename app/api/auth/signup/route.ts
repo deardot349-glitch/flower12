@@ -6,7 +6,6 @@ import { PLANS, getPlanConfig } from '@/lib/plans'
 import { sendWelcomeEmail } from '@/lib/email/service'
 import { validatePassword, validateEmail, validateShopName } from '@/lib/validators'
 
-// ─── Detect card type from first digit ─────────────────────────────────────
 function detectCardType(cardNumber: string): string {
   const first = cardNumber.replace(/\s/g, '')[0]
   if (first === '4') return 'Visa'
@@ -16,7 +15,6 @@ function detectCardType(cardNumber: string): string {
 }
 
 async function ensurePlans() {
-  // Upsert all plans so DB values always stay in sync with plans.ts
   await Promise.all(
     PLANS.map((plan) =>
       prisma.plan.upsert({
@@ -36,7 +34,7 @@ async function ensurePlans() {
           description:         plan.tagline,
           price:               plan.price,
           durationDays:        plan.durationDays,
-          maxBouquets:         plan.maxBouquets, // keeps DB in sync if we change limits
+          maxBouquets:         plan.maxBouquets,
           allowProfileDetails: plan.allowProfileDetails,
           features:            JSON.stringify(plan.features),
         },
@@ -50,11 +48,9 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       shopName, email, password, planSlug, location, about, workingHours,
-      // Card fields — used only to extract last4 + type, NEVER persisted in full
       cardNumber, cardExpiry, cardCvc, cardHolderName,
     } = body
 
-    // ── Validation ────────────────────────────────────────────────────────────
     if (!shopName || shopName.trim().length === 0) {
       return NextResponse.json({ error: 'Shop name is required' }, { status: 400 })
     }
@@ -74,7 +70,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: shopNameValidation.error }, { status: 400 })
     }
 
-    // Duplicate email check
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
     })
@@ -87,7 +82,6 @@ export async function POST(request: Request) {
 
     const selectedPlanConfig = getPlanConfig(planSlug)
 
-    // Card fields required for paid plans
     if (selectedPlanConfig.price > 0) {
       if (!cardNumber || !cardExpiry || !cardCvc || !cardHolderName) {
         return NextResponse.json(
@@ -105,24 +99,22 @@ export async function POST(request: Request) {
 
     await ensurePlans()
 
-    // Fetch plans
-    const [selectedPlan, freePlan, premiumPlan] = await Promise.all([
-      prisma.plan.findUnique({ where: { slug: selectedPlanConfig.slug } }),
+    const [freePlan, selectedPlan] = await Promise.all([
       prisma.plan.findUnique({ where: { slug: 'free' } }),
-      prisma.plan.findUnique({ where: { slug: 'premium' } }),
+      prisma.plan.findUnique({ where: { slug: selectedPlanConfig.slug } }),
     ])
 
-    if (!selectedPlan || !freePlan) {
+    if (!freePlan || !selectedPlan) {
       return NextResponse.json(
         { error: 'Failed to set up plans. Please try again.' },
         { status: 500 }
       )
     }
 
-    // New shops always start on free; paid plan activates after manual approval
     const baseSlug = slugify(shopName)
     const slug     = await generateUniqueSlug(baseSlug)
 
+    // All new shops start on the free (Старт) plan — 7-day trial
     const user = await prisma.user.create({
       data: {
         email:         email.toLowerCase().trim(),
@@ -130,39 +122,34 @@ export async function POST(request: Request) {
         emailVerified: true,
         shop: {
           create: {
-            name:     shopName.trim(),
+            name:         shopName.trim(),
             slug,
-            planId:   freePlan.id, // will be updated to premium below
-            location: location?.trim() || null,
-            about:    about?.trim() || null,
+            planId:       freePlan.id,
+            location:     location?.trim() || null,
+            about:        about?.trim() || null,
             workingHours: workingHours?.trim() || null,
+            suspended:    false,
           },
         },
       },
       include: { shop: true },
     })
 
-    // ── 14-day free Premium trial for every new signup ─────────────────────
-    if (user.shop && premiumPlan) {
-      const trialExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-      await prisma.$transaction([
-        prisma.subscription.create({
-          data: {
-            shopId:     user.shop.id,
-            planId:     premiumPlan.id,
-            status:     'active',
-            startDate:  new Date(),
-            expiryDate: trialExpiry,
-          },
-        }),
-        prisma.shop.update({
-          where: { id: user.shop.id },
-          data:  { planId: premiumPlan.id },
-        }),
-      ])
+    // Create the 7-day Старт subscription — shop goes offline when it expires
+    if (user.shop) {
+      const trialExpiry = new Date(Date.now() + freePlan.durationDays * 24 * 60 * 60 * 1000)
+      await prisma.subscription.create({
+        data: {
+          shopId:     user.shop.id,
+          planId:     freePlan.id,
+          status:     'active',
+          startDate:  new Date(),
+          expiryDate: trialExpiry,
+        },
+      })
     }
 
-    // If paid plan selected, create subscription + MINIMAL payment record
+    // If user signed up for a paid plan, also queue that payment for admin approval
     if (selectedPlanConfig.price > 0 && user.shop) {
       const rawNumber = cardNumber.replace(/\s/g, '')
       const last4     = rawNumber.slice(-4)
@@ -184,7 +171,6 @@ export async function POST(request: Request) {
           cardHolderName: cardHolderName.trim(),
           cardLast4:      last4,
           cardType,
-          // cardNumber, cardExpiry, cardCvc are intentionally NOT stored
         },
       })
     }
@@ -199,8 +185,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: isPaid
-        ? 'Акаунт створено! Оплату буде перевірено протягом 24 год — після цього план активується.'
-        : 'Акаунт створено! У вас активовано безкоштовний трайл Преміум на 14 днів. Увійдіть та налаштуйте магазин!',
+        ? 'Акаунт створено! У вас є 7 днів безкоштовно. Оплату буде перевірено протягом 24 год — після цього платний план активується.'
+        : 'Акаунт створено! У вас 7 днів безкоштовно (план Старт). Увійдіть та налаштуйте магазин!',
       user: { id: user.id, email: user.email, shopSlug: user.shop?.slug },
     })
   } catch (error: any) {
@@ -211,7 +197,6 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-    // Generic message — never expose raw error internals to the client
     return NextResponse.json(
       { error: 'Failed to create account. Please try again.' },
       { status: 500 }

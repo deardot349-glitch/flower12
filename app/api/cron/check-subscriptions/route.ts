@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendSubscriptionExpiryWarning } from '@/lib/email/service'
 
-// ─── Auth helper ─────────────────────────────────────────────────────────────
-// CRON_SECRET must be set in .env — no fallback to catch misconfigured deployments.
 function checkCronAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) {
@@ -14,7 +12,7 @@ function checkCronAuth(request: Request): boolean {
   return authHeader === `Bearer ${secret}`
 }
 
-// GET — expire overdue subscriptions and downgrade shops to free plan
+// GET — suspend shops whose active subscription has expired
 export async function GET(request: Request) {
   try {
     if (!checkCronAuth(request)) {
@@ -36,13 +34,11 @@ export async function GET(request: Request) {
 
     console.log(`Found ${expiredSubscriptions.length} expired subscriptions`)
 
-    const freePlan = await prisma.plan.findUnique({ where: { slug: 'free' } })
-    if (!freePlan) throw new Error('Free plan not found in database')
-
     const results = []
 
     for (const subscription of expiredSubscriptions) {
       try {
+        // Mark subscription expired + suspend the shop (goes offline)
         await prisma.$transaction([
           prisma.subscription.update({
             where: { id: subscription.id },
@@ -50,27 +46,27 @@ export async function GET(request: Request) {
           }),
           prisma.shop.update({
             where: { id: subscription.shopId },
-            data:  { planId: freePlan.id },
+            data:  { suspended: true, suspendedAt: now, suspendedReason: 'subscription_expired' },
           }),
         ])
 
         results.push({
-          shopId:       subscription.shopId,
-          shopName:     subscription.shop.name,
-          previousPlan: subscription.plan.name,
-          status:       'downgraded',
+          shopId:   subscription.shopId,
+          shopName: subscription.shop.name,
+          planName: subscription.plan.name,
+          status:   'suspended',
         })
 
-        console.log(`Downgraded shop ${subscription.shop.name} to free plan`)
+        console.log(`Suspended shop "${subscription.shop.name}" — plan ${subscription.plan.name} expired`)
       } catch (err) {
         console.error(`Failed to process subscription ${subscription.id}:`, err)
         results.push({ shopId: subscription.shopId, status: 'failed', error: String(err) })
       }
     }
 
-    // Email notifications
+    // Send expiry email notifications
     for (const result of results) {
-      if (result.status === 'downgraded') {
+      if (result.status === 'suspended') {
         try {
           const sub = expiredSubscriptions.find(s => s.shopId === result.shopId)
           if (sub?.shop?.owner?.email) {
@@ -88,7 +84,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // ── Auto-delete orders older than 30 days ───────────────────────────────────
+    // Auto-delete orders older than 30 days
     const orderCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const deletedOrders = await prisma.order.deleteMany({
       where: { createdAt: { lt: orderCutoff } },
@@ -96,11 +92,11 @@ export async function GET(request: Request) {
     console.log(`Auto-deleted ${deletedOrders.count} orders older than 30 days`)
 
     return NextResponse.json({
-      success:        true,
-      processed:      expiredSubscriptions.length,
+      success:       true,
+      processed:     expiredSubscriptions.length,
       results,
-      ordersDeleted:  deletedOrders.count,
-      timestamp:      now.toISOString(),
+      ordersDeleted: deletedOrders.count,
+      timestamp:     now.toISOString(),
     })
   } catch (error: any) {
     console.error('Cron job error:', error)
@@ -111,21 +107,20 @@ export async function GET(request: Request) {
   }
 }
 
-// POST — send 7-day expiry warning emails
+// POST — send 3-day expiry warning emails
 export async function POST(request: Request) {
   try {
     if (!checkCronAuth(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const now              = new Date()
-    const sevenDaysFromNow = new Date()
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+    const now           = new Date()
+    const threeDaysOut  = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
 
     const expiringSoon = await prisma.subscription.findMany({
       where: {
         status:     'active',
-        expiryDate: { gte: now, lte: sevenDaysFromNow },
+        expiryDate: { gte: now, lte: threeDaysOut },
       },
       include: {
         shop: { include: { owner: { select: { email: true } } } },
@@ -133,7 +128,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log(`Found ${expiringSoon.length} subscriptions expiring soon`)
+    console.log(`Found ${expiringSoon.length} subscriptions expiring in 3 days`)
 
     const warnings = []
     for (const sub of expiringSoon) {

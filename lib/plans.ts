@@ -5,25 +5,22 @@ export interface PlanConfig {
   name: string
   price: number
   priceLabel: string
-  monthlyEquivalent?: string   // shown when annual is highlighted
   tagline: string
+  /** How long the plan lasts. 7 for Старт, 30 for paid. */
   durationDays: number
   maxBouquets: number
   // ── feature gates ──────────────────────────────────────────────────────────
   allowProfileDetails: boolean
   allowTelegram: boolean
-  allowDeliveryZones: boolean
-  maxDeliveryZones: number   // -1 = unlimited
-  allowAnalytics: boolean
   allowCustomColors: boolean
   allowCoverPhoto: boolean
   allowLogoUpload: boolean
-  allowStockManagement: boolean
-  allowWrappingOptions: boolean
   allowCustomBouquet: boolean
+  allowWrappingOptions: boolean
+  allowStockManagement: boolean
   allowCustomExtras: boolean
   allowRemoveBranding: boolean
-  /** Shop appears in the public /shops directory */
+  /** Shop appears in public /shops directory */
   allowDirectoryListing: boolean
   // ── display ────────────────────────────────────────────────────────────────
   features: string[]
@@ -32,93 +29,86 @@ export interface PlanConfig {
 }
 
 export const PLANS: PlanConfig[] = [
-  // ──────────────────────────────────────────────────────────────── FREE ─────
+  // ──────────────────────────────────────────────────── СТАРТ (free) ─────
   {
     slug: 'free',
-    name: 'Безкоштовний',
+    name: 'Старт',
     price: 0,
     priceLabel: 'Безкоштовно',
-    tagline: 'Спробуйте платформу без жодного ризику.',
-    durationDays: 0,
-    maxBouquets: 5,
+    tagline: '7 днів щоб спробувати — без картки.',
+    durationDays: 7,
+    maxBouquets: 10,
 
     allowProfileDetails: true,
     allowTelegram: false,
-    allowDeliveryZones: true,   // all plans can set a delivery fee
-    maxDeliveryZones: 1,        // free = 1 zone only
-    allowAnalytics: false,
     allowCustomColors: false,
     allowCoverPhoto: false,
     allowLogoUpload: false,
-    allowStockManagement: false,
-    allowWrappingOptions: false,
     allowCustomBouquet: false,
+    allowWrappingOptions: false,
+    allowStockManagement: false,
     allowCustomExtras: false,
     allowRemoveBranding: false,
-    allowDirectoryListing: false, // ← not listed in /shops
+    allowDirectoryListing: false,
 
     features: [
-      'До 5 букетів — щоб запуститись',
-      'Публічна сторінка магазину з адресою та годинами роботи',
-      'Приймання замовлень через сайт',
+      'До 10 букетів',
+      'Публічна сторінка магазину',
+      'Приймання замовлень онлайн',
       'Email сповіщення про нові замовлення',
     ],
     limitations: [
-      'Без відображення у загальному каталозі /shops',
+      '7 днів — після чого магазин вимикається',
       'Без Telegram сповіщень',
-      'Без зон доставки',
-      'Без аналітики',
-      'Без кастомних кольорів і логотипу',
+      'Без фото обкладинки та логотипу',
+      'Без кастомних кольорів',
+      'Без відображення у каталозі /shops',
       'Брендинг FlowerGoUa на сторінці',
     ],
   },
 
-  // ───────────────────────────────────────────────────────────────── BASIC ───
+  // ────────────────────────────────────────────────────── ПРО (basic) ───
   {
     slug: 'basic',
-    name: 'Базовий',
+    name: 'Про',
     price: 490,
     priceLabel: '490 грн / міс',
-    tagline: 'Для магазинів що активно ростуть.',
+    tagline: 'Все для повноцінного онлайн-магазину.',
     durationDays: 30,
-    maxBouquets: 40,
+    maxBouquets: 999,
 
     allowProfileDetails: true,
     allowTelegram: true,
-    allowDeliveryZones: true,
-    maxDeliveryZones: 10,
-    allowAnalytics: false,
-    allowCustomColors: false,
+    allowCustomColors: true,
     allowCoverPhoto: true,
     allowLogoUpload: false,
-    allowStockManagement: false,
-    allowWrappingOptions: false,
     allowCustomBouquet: false,
+    allowWrappingOptions: false,
+    allowStockManagement: false,
     allowCustomExtras: false,
     allowRemoveBranding: true,
-    allowDirectoryListing: true,  // ← listed in /shops
+    allowDirectoryListing: true,
 
     features: [
-      'До 40 букетів — вистачить для більшості магазинів',
-      'Повний профіль — адреса, години, контакти',
-      '📍 Відображення у загальному каталозі /shops',
+      'Необмежена кількість букетів',
       'Telegram сповіщення з кнопками',
-      'Зони доставки з вартістю',
-      'Фото обкладинки',
-      'Без логотипу FlowerGoUa',
+      'Фото обкладинки магазину',
+      'Кастомні кольори та тема бренду',
+      '📍 Відображення у каталозі /shops',
+      'Без брендингу FlowerGoUa',
     ],
     limitations: [
-      'Без кастомних кольорів та логотипу магазину',
-      'Без кастомного конструктора букетів',
-      'Без аналітики та трендів',
+      'Без логотипу магазину',
+      'Без конструктора букетів на замовлення',
+      'Без управління запасами квітів',
     ],
     highlight: true,
   },
 
-  // ─────────────────────────────────────────────────────────────── PREMIUM ───
+  // ─────────────────────────────────────────── БІЗНЕС (premium) ───
   {
     slug: 'premium',
-    name: 'Преміум',
+    name: 'Бізнес',
     price: 990,
     priceLabel: '990 грн / міс',
     tagline: 'Повний контроль для серйозного бізнесу.',
@@ -127,28 +117,23 @@ export const PLANS: PlanConfig[] = [
 
     allowProfileDetails: true,
     allowTelegram: true,
-    allowDeliveryZones: true,
-    maxDeliveryZones: -1,
-    allowAnalytics: true,
     allowCustomColors: true,
     allowCoverPhoto: true,
     allowLogoUpload: true,
-    allowStockManagement: true,
-    allowWrappingOptions: true,
     allowCustomBouquet: true,
+    allowWrappingOptions: true,
+    allowStockManagement: true,
     allowCustomExtras: true,
     allowRemoveBranding: true,
-    allowDirectoryListing: true,  // ← listed in /shops
+    allowDirectoryListing: true,
 
     features: [
-      'Необмежена кількість букетів',
-      'Все з Базового плану',
-      '📍 Пріоритетне відображення у каталозі /shops',
+      'Все з плану Про',
       '🔥 Кастомний конструктор букетів',
       '🔥 Управління запасами квітів',
-      '🔥 Варіанти обгортання',
-      'Детальна аналітика',
-      'Власні кольори та логотип',
+      '🔥 Варіанти обгортання та додатки',
+      '🔥 Власний логотип магазину',
+      '📍 Пріоритетне відображення у каталозі',
       'Пріоритетна підтримка',
     ],
     limitations: [],

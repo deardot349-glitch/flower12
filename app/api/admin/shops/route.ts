@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// ─── Auth helper ─────────────────────────────────────────────────────────────
 function checkAdminAuth(request: Request): boolean {
   const secret = process.env.ADMIN_SECRET
   if (!secret) {
@@ -39,7 +38,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ shops })
 }
 
-// POST — suspend / unsuspend a shop
+// POST — suspend / unsuspend a shop manually
 export async function POST(request: Request) {
   try {
     if (!checkAdminAuth(request)) {
@@ -58,8 +57,9 @@ export async function POST(request: Request) {
     await prisma.shop.update({
       where: { id: shopId },
       data: {
-        suspended:   action === 'suspend',
-        suspendedAt: action === 'suspend' ? new Date() : null,
+        suspended:       action === 'suspend',
+        suspendedAt:     action === 'suspend' ? new Date() : null,
+        suspendedReason: action === 'suspend' ? 'admin_manual' : null,
       },
     })
 
@@ -90,7 +90,6 @@ export async function DELETE(request: Request) {
     })
     if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
-    // Delete the owner user — cascades to Shop → everything
     await prisma.user.delete({ where: { id: shop.ownerId } })
 
     return NextResponse.json({
@@ -102,7 +101,7 @@ export async function DELETE(request: Request) {
   }
 }
 
-// PATCH — cancel / activate a subscription
+// PATCH — activate / cancel a subscription, or change plan manually
 export async function PATCH(request: Request) {
   try {
     if (!checkAdminAuth(request)) {
@@ -112,7 +111,7 @@ export async function PATCH(request: Request) {
     const body = await request.json()
     const { subscriptionId, action } = body
 
-    // ── Change plan manually ───────────────────────────────────────────────
+    // ── Change plan manually ─────────────────────────────────────────────────
     if (action === 'changePlan') {
       const { shopId, planSlug } = body
       if (!shopId || !planSlug) return NextResponse.json({ error: 'shopId and planSlug required' }, { status: 400 })
@@ -127,20 +126,21 @@ export async function PATCH(request: Request) {
       await prisma.$transaction([
         prisma.subscription.updateMany({
           where: { shopId, status: 'active' },
-          data: { status: 'cancelled' },
+          data:  { status: 'cancelled' },
         }),
         prisma.subscription.create({
           data: {
             shopId,
-            planId: plan.id,
-            status: 'active',
-            startDate: new Date(),
+            planId:     plan.id,
+            status:     'active',
+            startDate:  new Date(),
             expiryDate,
           },
         }),
         prisma.shop.update({
           where: { id: shopId },
-          data: { planId: plan.id },
+          // Unsuspend when a plan is manually assigned
+          data: { planId: plan.id, suspended: false, suspendedAt: null, suspendedReason: null },
         }),
       ])
 
@@ -157,26 +157,40 @@ export async function PATCH(request: Request) {
     })
     if (!sub) return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
 
+    // Cancel → suspend the shop (no active plan = offline)
     if (action === 'cancel') {
-      const freePlan = await prisma.plan.findUnique({ where: { slug: 'free' } })
-      if (!freePlan) return NextResponse.json({ error: 'Free plan not found' }, { status: 500 })
-
       await prisma.$transaction([
-        prisma.subscription.update({ where: { id: subscriptionId }, data: { status: 'cancelled' } }),
-        prisma.shop.update({ where: { id: sub.shopId }, data: { planId: freePlan.id } }),
+        prisma.subscription.update({
+          where: { id: subscriptionId },
+          data:  { status: 'cancelled' },
+        }),
+        prisma.shop.update({
+          where: { id: sub.shopId },
+          data:  { suspended: true, suspendedAt: new Date(), suspendedReason: 'subscription_cancelled' },
+        }),
       ])
-      return NextResponse.json({ success: true, message: 'Підписку скасовано, магазин переведено на безкоштовний план' })
+      return NextResponse.json({ success: true, message: 'Підписку скасовано, магазин переведено в офлайн' })
     }
 
+    // Activate → unsuspend + update plan + set expiry
     if (action === 'activate') {
       const expiryDate = new Date()
       expiryDate.setDate(expiryDate.getDate() + sub.plan.durationDays)
+
       await prisma.$transaction([
         prisma.subscription.update({
           where: { id: subscriptionId },
           data:  { status: 'active', startDate: new Date(), expiryDate },
         }),
-        prisma.shop.update({ where: { id: sub.shopId }, data: { planId: sub.planId } }),
+        prisma.shop.update({
+          where: { id: sub.shopId },
+          data:  {
+            planId:          sub.planId,
+            suspended:       false,
+            suspendedAt:     null,
+            suspendedReason: null,
+          },
+        }),
       ])
       return NextResponse.json({ success: true, message: `Підписку активовано — план ${sub.plan.name}` })
     }

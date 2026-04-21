@@ -112,9 +112,9 @@ export default async function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
             <Link href="/signup"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-7 py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-xl shadow-pink-500/25">
-              <span className="sm:hidden">🎉 14 днів Преміум безкоштовно</span>
-              <span className="hidden sm:inline">Спробувати 14 днів безкоштовно</span>
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-7 py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-semibold text-xs sm:text-sm transition-all shadow-xl shadow-pink-500/25">
+            <span className="sm:hidden">🎉 7 днів безкоштовно</span>
+            <span className="hidden sm:inline">Спробувати 7 днів безкоштовно</span>
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
             </Link>
             <Link href="/kvity-demo"
@@ -220,7 +220,7 @@ export default async function Home() {
                 {
                   num: '01',
                   title: 'Оберіть план',
-                  text: 'Безкоштовний план доступний назавжди. Оновлюйте коли зростете.',
+                  text: '7 днів безкоштовно — без картки. Потім оберіть Про або Бізнес коли зростете.',
                   icon: (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                   ),
@@ -444,7 +444,7 @@ export default async function Home() {
               Прозорі ціни, без сюрпризів
             </h2>
             <p className="text-gray-500 mb-4">
-              Починайте з <strong className="text-pink-600">14-денного безкоштовного трайлу Преміум</strong> — без картки.
+              Починайте з <strong className="text-pink-600">7 днів безкоштовно</strong> — без картки. Потім оберіть план що підходить.
             </p>
             <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 text-sm font-semibold px-4 py-2 rounded-full">
               ✅ Картка не потрібна · Без авто-продовження · Скасуйте коли захочете
@@ -471,7 +471,7 @@ export default async function Home() {
                   </div>
                   {plan.slug === 'free' && (
                     <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full mb-2">
-                      🎉 14 днів Преміум безкоштовно
+                      🎉 7 днів безкоштовно — без картки
                     </div>
                   )}
                   <p className={`text-sm ${plan.highlight ? 'text-gray-400' : 'text-gray-500'}`}>{plan.tagline}</p>

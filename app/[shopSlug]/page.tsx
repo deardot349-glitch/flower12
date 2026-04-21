@@ -6,10 +6,15 @@ import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import ShopClient from './ShopClient'
 
-// ── Data fetcher (shared by generateMetadata + page) ──────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-async function getShop(slug: string) {
-  const shop = await prisma.shop.findUnique({
+type OfflineShop = { offline: true; name: string }
+type OnlineShop  = Awaited<ReturnType<typeof fetchOnlineShop>>
+
+// ── Data fetcher ───────────────────────────────────────────────────────────────
+
+async function fetchOnlineShop(slug: string) {
+  return prisma.shop.findUnique({
     where: { slug },
     select: {
       id: true,
@@ -77,27 +82,33 @@ async function getShop(slug: string) {
       },
     },
   })
+}
 
-  if (!shop || shop.suspended) return null
+async function getShop(slug: string): Promise<OnlineShop | OfflineShop | null> {
+  const shop = await fetchOnlineShop(slug)
 
-  // Enforce plan gate on allowCustomBouquet
-  const shopWithGate = {
+  if (!shop) return null                          // 404 — shop doesn't exist
+
+  if (shop.suspended) {
+    return { offline: true, name: shop.name }     // offline page — plan expired
+  }
+
+  // Enforce plan gate on allowCustomBouquet — only 'premium' (Бізнес) gets it
+  return {
     ...shop,
     allowCustomBouquet: shop.plan.slug === 'premium' && shop.allowCustomBouquet,
   }
-
-  return shopWithGate
 }
 
-// ── generateMetadata — gives every shop page its own <title> + OG tags ────────
+// ── Metadata ───────────────────────────────────────────────────────────────────
 
 export async function generateMetadata(
   { params }: { params: { shopSlug: string } }
 ): Promise<Metadata> {
-  const shop = await getShop(params.shopSlug)
+  const shop = await fetchOnlineShop(params.shopSlug)
 
-  if (!shop) {
-    return { title: 'Магазин не знайдено — FlowerGoUa' }
+  if (!shop || shop.suspended) {
+    return { title: 'Магазин тимчасово недоступний — FlowerGoUa' }
   }
 
   const title       = `${shop.name} — квіти та букети`
@@ -124,6 +135,39 @@ export async function generateMetadata(
   }
 }
 
+// ── Offline page ───────────────────────────────────────────────────────────────
+
+function ShopOfflinePage({ name }: { name: string }) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+      <div className="max-w-md w-full text-center">
+        {/* Icon */}
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-4xl mx-auto mb-6 shadow-sm">
+          🌸
+        </div>
+
+        {/* Heading */}
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          {name}
+        </h1>
+        <p className="text-gray-500 text-base mb-8">
+          Цей магазин тимчасово недоступний.
+          <br />
+          Спробуйте зайти пізніше або зв'яжіться з власником напряму.
+        </p>
+
+        {/* Divider */}
+        <div className="border-t border-gray-200 pt-6 text-sm text-gray-400">
+          Powered by{' '}
+          <a href="/" className="font-semibold text-pink-500 hover:text-pink-600 transition-colors">
+            FlowerGoUa
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function ShopPage(
@@ -131,12 +175,14 @@ export default async function ShopPage(
 ) {
   const shop = await getShop(params.shopSlug)
 
-  if (!shop) {
-    // Renders the app/not-found.tsx (or Next.js default 404)
-    notFound()
+  if (!shop) notFound()
+
+  // Offline / suspended state
+  if ('offline' in shop) {
+    return <ShopOfflinePage name={shop.name} />
   }
 
-  // Serialize dates to strings so the client component gets plain JSON props
+  // Serialize dates to strings for client component
   const serialized = {
     ...shop,
     flowers: shop.flowers.map(f => ({
@@ -144,7 +190,6 @@ export default async function ShopPage(
       createdAt: f.createdAt.toISOString(),
       madeAt:    f.madeAt ? f.madeAt.toISOString() : null,
     })),
-    // Remove plan (only used for the gate above)
     plan: undefined,
   }
 

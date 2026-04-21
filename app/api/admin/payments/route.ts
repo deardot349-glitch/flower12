@@ -95,7 +95,13 @@ export async function POST(request: Request) {
         }),
         prisma.shop.update({
           where: { id: payment.subscription.shopId },
-          data:  { planId: payment.subscription.planId },
+          // Unsuspend the shop when payment is approved
+          data:  {
+            planId:          payment.subscription.planId,
+            suspended:       false,
+            suspendedAt:     null,
+            suspendedReason: null,
+          },
         }),
       ])
 

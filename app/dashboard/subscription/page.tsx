@@ -4,78 +4,92 @@ import { useState, useEffect } from 'react'
 import { PLANS } from '@/lib/plans'
 import Link from 'next/link'
 
-function TrialBanner({ expiryDate }: { expiryDate: string }) {
-  const [daysLeft, setDaysLeft] = useState(0)
+// ── Countdown timer shown when a plan is close to expiring ───────────────────
+function ExpiryBanner({ expiryDate, planName }: { expiryDate: string; planName: string }) {
+  const [daysLeft, setDaysLeft]   = useState(0)
   const [hoursLeft, setHoursLeft] = useState(0)
 
   useEffect(() => {
     const calc = () => {
       const diff = new Date(expiryDate).getTime() - Date.now()
-      setDaysLeft(Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24))))
-      setHoursLeft(Math.max(0, Math.ceil((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))))
+      const totalHours = Math.max(0, diff / (1000 * 60 * 60))
+      setDaysLeft(Math.max(0, Math.floor(totalHours / 24)))
+      setHoursLeft(Math.max(0, Math.floor(totalHours % 24)))
     }
     calc()
-    const t = setInterval(calc, 60000)
+    const t = setInterval(calc, 60_000)
     return () => clearInterval(t)
   }, [expiryDate])
 
-  const urgent = daysLeft <= 3
+  const expired = daysLeft === 0 && hoursLeft === 0
+  const urgent  = daysLeft <= 2
 
-  return (
-    <div className={`rounded-2xl p-4 mb-6 border-2 ${
-      urgent
-        ? 'bg-red-50 border-red-300'
-        : 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-300'
-    }`}>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+  if (expired) {
+    return (
+      <div className="rounded-2xl p-4 mb-6 border-2 bg-red-50 border-red-300">
         <div className="flex items-center gap-3">
-          <div className={`text-2xl ${urgent ? 'animate-bounce' : ''}`}>{urgent ? '⚠️' : '🎉'}</div>
+          <span className="text-2xl">🚫</span>
           <div>
-            <p className={`font-bold text-sm ${urgent ? 'text-red-800' : 'text-emerald-800'}`}>
-              {urgent ? 'Трайл закінчується скоро!' : '14-денний трайл Преміум — активно'}
-            </p>
-            <p className={`text-xs mt-0.5 ${urgent ? 'text-red-600' : 'text-emerald-600'}`}>
-              {daysLeft > 0
-                ? `Залишилось ${daysLeft} із 14 днів — після цього магазин перейде на безкоштовний план`
-                : 'Трайл закінчився — оплатіть щоб продовжити користуватись всіми функціями'}
-            </p>
-          </div>
-        </div>
-        {/* Countdown blocks */}
-        <div className="flex items-center gap-2">
-          <div className={`text-center px-3 py-2 rounded-xl ${urgent ? 'bg-red-100' : 'bg-white border border-emerald-200'}`}>
-            <p className={`text-2xl font-black tabular-nums ${urgent ? 'text-red-700' : 'text-emerald-700'}`}>{daysLeft}</p>
-            <p className={`text-[10px] font-semibold ${urgent ? 'text-red-500' : 'text-emerald-500'}`}>днів</p>
-          </div>
-          <span className={urgent ? 'text-red-400' : 'text-emerald-400'}>·</span>
-          <div className={`text-center px-3 py-2 rounded-xl ${urgent ? 'bg-red-100' : 'bg-white border border-emerald-200'}`}>
-            <p className={`text-2xl font-black tabular-nums ${urgent ? 'text-red-700' : 'text-emerald-700'}`}>{hoursLeft}</p>
-            <p className={`text-[10px] font-semibold ${urgent ? 'text-red-500' : 'text-emerald-500'}`}>годин</p>
+            <p className="font-bold text-sm text-red-800">Термін плану «{planName}» закінчився</p>
+            <p className="text-xs mt-0.5 text-red-600">Ваш магазин зараз офлайн. Оберіть план нижче щоб відновити роботу.</p>
           </div>
         </div>
       </div>
-      {urgent && daysLeft > 0 && (
-        <p className={`text-xs mt-3 font-medium ${urgent ? 'text-red-700' : 'text-emerald-700'}`}>
-          ↓ Оберіть план нижче щоб не втратити доступ до функцій Преміум
+    )
+  }
+
+  return (
+    <div className={`rounded-2xl p-4 mb-6 border-2 ${
+      urgent ? 'bg-red-50 border-red-300' : 'bg-amber-50 border-amber-300'
+    }`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className={`text-2xl ${urgent ? 'animate-bounce' : ''}`}>{urgent ? '⚠️' : '⏳'}</div>
+          <div>
+            <p className={`font-bold text-sm ${urgent ? 'text-red-800' : 'text-amber-800'}`}>
+              {urgent ? 'Термін плану закінчується скоро!' : `План «${planName}» активний`}
+            </p>
+            <p className={`text-xs mt-0.5 ${urgent ? 'text-red-600' : 'text-amber-600'}`}>
+              Залишилось {daysLeft > 0 ? `${daysLeft} дн.` : ''}{hoursLeft > 0 ? ` ${hoursLeft} год.` : ''} — після цього магазин піде в офлайн
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`text-center px-3 py-2 rounded-xl ${urgent ? 'bg-red-100' : 'bg-white border border-amber-200'}`}>
+            <p className={`text-2xl font-black tabular-nums ${urgent ? 'text-red-700' : 'text-amber-700'}`}>{daysLeft}</p>
+            <p className={`text-[10px] font-semibold ${urgent ? 'text-red-500' : 'text-amber-500'}`}>днів</p>
+          </div>
+          <span className={urgent ? 'text-red-400' : 'text-amber-400'}>·</span>
+          <div className={`text-center px-3 py-2 rounded-xl ${urgent ? 'bg-red-100' : 'bg-white border border-amber-200'}`}>
+            <p className={`text-2xl font-black tabular-nums ${urgent ? 'text-red-700' : 'text-amber-700'}`}>{hoursLeft}</p>
+            <p className={`text-[10px] font-semibold ${urgent ? 'text-red-500' : 'text-amber-500'}`}>годин</p>
+          </div>
+        </div>
+      </div>
+      {urgent && (
+        <p className={`text-xs mt-3 font-medium ${urgent ? 'text-red-700' : 'text-amber-700'}`}>
+          ↓ Оберіть план нижче щоб магазин не зупинився
         </p>
       )}
     </div>
   )
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function SubscriptionPage() {
-  const [selectedPlan, setSelectedPlan] = useState<string>('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [subscriptions, setSubscriptions] = useState<any[]>([])
+  const [selectedPlan, setSelectedPlan]       = useState<string>('')
+  const [loading, setLoading]                 = useState(false)
+  const [error, setError]                     = useState('')
+  const [success, setSuccess]                 = useState('')
+  const [subscriptions, setSubscriptions]     = useState<any[]>([])
   const [currentPlanSlug, setCurrentPlanSlug] = useState<string>('free')
-  const [trialExpiry, setTrialExpiry] = useState<string | null>(null)
+  const [activeExpiry, setActiveExpiry]       = useState<string | null>(null)
+  const [shopSuspended, setShopSuspended]     = useState(false)
 
   const [formData, setFormData] = useState({
-    cardNumber: '',
-    cardExpiry: '',
-    cardCvc: '',
+    cardNumber:     '',
+    cardExpiry:     '',
+    cardCvc:        '',
     cardHolderName: '',
   })
 
@@ -86,23 +100,22 @@ export default function SubscriptionPage() {
 
   const fetchCurrentPlan = async () => {
     try {
-      const res = await fetch('/api/shop')
+      const res  = await fetch('/api/shop')
       const data = await res.json()
       if (data.shop?.plan?.slug) setCurrentPlanSlug(data.shop.plan.slug)
+      if (data.shop?.suspended !== undefined) setShopSuspended(data.shop.suspended)
     } catch {}
   }
 
   const fetchSubscriptions = async () => {
     try {
-      const res = await fetch('/api/subscriptions')
+      const res  = await fetch('/api/subscriptions')
       const data = await res.json()
       if (data.subscriptions) {
         setSubscriptions(data.subscriptions)
-        // Detect trial: active premium subscription with no payment
-        const trial = data.subscriptions.find((s: any) =>
-          s.status === 'active' && s.plan?.slug === 'premium' && !s.payment && s.expiryDate
-        )
-        if (trial) setTrialExpiry(trial.expiryDate)
+        // Find the active subscription to show its expiry countdown
+        const active = data.subscriptions.find((s: any) => s.status === 'active' && s.expiryDate)
+        if (active) setActiveExpiry(active.expiryDate)
       }
     } catch {}
   }
@@ -127,9 +140,9 @@ export default function SubscriptionPage() {
     setLoading(true); setError(''); setSuccess('')
     try {
       const response = await fetch('/api/subscriptions', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planSlug: selectedPlan, ...formData }),
+        body:    JSON.stringify({ planSlug: selectedPlan, ...formData }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to submit payment')
@@ -144,7 +157,7 @@ export default function SubscriptionPage() {
     }
   }
 
-  const paidPlans = PLANS.filter(p => p.price > 0)
+  const paidPlans          = PLANS.filter(p => p.price > 0)
   const selectedPlanConfig = PLANS.find(p => p.slug === selectedPlan)
 
   const planEmoji: Record<string, string> = { free: '🌱', basic: '🌸', premium: '🌺' }
@@ -158,15 +171,28 @@ export default function SubscriptionPage() {
         <p className="text-gray-500 text-sm mt-1">Оберіть план для вашого магазину</p>
       </div>
 
+      {/* Shop offline warning */}
+      {shopSuspended && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 mb-6 flex items-start gap-3">
+          <span className="text-2xl">🚫</span>
+          <div>
+            <p className="font-bold text-red-800">Ваш магазин зараз офлайн</p>
+            <p className="text-sm text-red-600 mt-0.5">
+              Клієнти не можуть переглянути ваш магазин. Оформіть підписку нижче — після підтвердження оплати магазин відразу стане онлайн.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Current plan badge */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8 flex items-center gap-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6 flex items-center gap-4">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-2xl">
           {planEmoji[currentPlanSlug] || '🌱'}
         </div>
         <div>
           <p className="text-sm text-gray-500">Поточний план</p>
           <p className="font-bold text-gray-900 text-lg">
-            {PLANS.find(p => p.slug === currentPlanSlug)?.name || 'Безкоштовний'}
+            {PLANS.find(p => p.slug === currentPlanSlug)?.name || 'Старт'}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
             {PLANS.find(p => p.slug === currentPlanSlug)?.priceLabel}
@@ -179,39 +205,46 @@ export default function SubscriptionPage() {
         )}
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">{error}</div>}
+      {/* Expiry countdown */}
+      {activeExpiry && (
+        <ExpiryBanner
+          expiryDate={activeExpiry}
+          planName={PLANS.find(p => p.slug === currentPlanSlug)?.name || 'Старт'}
+        />
+      )}
+
+      {error   && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">{error}</div>}
       {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 text-sm">{success}</div>}
 
-      {/* Trial banner */}
-      {trialExpiry && <TrialBanner expiryDate={trialExpiry} />}
-
-      {/* What you get callout */}
+      {/* Бізнес callout */}
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-5 mb-8 flex items-start gap-4">
         <div className="text-3xl">🔥</div>
         <div>
-          <p className="font-black text-purple-900 mb-1">Кастомний конструктор букетів — лише на Преміум</p>
+          <p className="font-black text-purple-900 mb-1">Конструктор букетів — лише на Бізнес</p>
           <p className="text-sm text-purple-700">
-            На Преміум плані клієнти складають кастомні букети самостійно — обирають квіти, упаковку і додатки (іграшки, вузлики, цукерки) і бачать ціну в реальному часі.
-            Це збільшує середній чек і кількість замовлень.
+            Клієнти складають кастомні букети самостійно — обирають квіти, упаковку і додатки і бачать ціну в реальному часі.
+            Збільшує середній чек і кількість замовлень.
           </p>
         </div>
       </div>
 
-      {/* Plan cards */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {PLANS.map(plan => {
+      {/* Plan cards — only paid plans */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        {paidPlans.map(plan => {
           const isCurrent = plan.slug === currentPlanSlug
           const isSelected = plan.slug === selectedPlan
 
           return (
             <div key={plan.slug}
-              onClick={() => !isCurrent && plan.price > 0 && setSelectedPlan(plan.slug)}
+              onClick={() => !isCurrent && setSelectedPlan(plan.slug)}
               className={`relative rounded-2xl border-2 p-6 transition-all ${
-                isCurrent    ? 'border-green-400 bg-green-50 cursor-default' :
-                isSelected   ? 'border-pink-500 bg-pink-50 shadow-lg cursor-pointer' :
-                plan.highlight ? 'border-purple-300 bg-white shadow-md cursor-pointer hover:border-purple-400' :
-                plan.price > 0 ? 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer' :
-                'border-gray-200 bg-white cursor-default'
+                isCurrent
+                  ? 'border-green-400 bg-green-50 cursor-default'
+                  : isSelected
+                    ? 'border-pink-500 bg-pink-50 shadow-lg cursor-pointer'
+                    : plan.highlight
+                      ? 'border-purple-300 bg-white shadow-md cursor-pointer hover:border-purple-400'
+                      : 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer'
               }`}>
 
               {plan.highlight && !isCurrent && (
@@ -228,13 +261,7 @@ export default function SubscriptionPage() {
               <div className="text-3xl mb-3">{planEmoji[plan.slug]}</div>
               <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
               <div className="text-2xl font-black text-gray-900 mb-0.5">{plan.priceLabel}</div>
-              {plan.price > 0 && (
-                <p className="text-xs text-gray-400 mb-3">
-                  або <span className="font-semibold">
-                    {plan.slug === 'basic' ? '8 100 грн / рік' : '18 000 грн / рік'}
-                  </span> (2 місяці безкоштовно)
-                </p>
-              )}
+              <p className="text-xs text-gray-400 mb-3">{plan.durationDays} днів — потім потрібно продовжити</p>
               <p className="text-sm text-gray-500 mb-4">{plan.tagline}</p>
 
               <ul className="space-y-2 mb-4">
@@ -255,7 +282,7 @@ export default function SubscriptionPage() {
                 </ul>
               )}
 
-              {!isCurrent && plan.price > 0 && (
+              {!isCurrent && (
                 <button type="button" onClick={() => setSelectedPlan(plan.slug)}
                   className={`mt-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                     isSelected
@@ -280,7 +307,7 @@ export default function SubscriptionPage() {
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-1">💳 Оплата</h2>
           <p className="text-sm text-gray-500 mb-6">
-            Ви обрали: <strong>{selectedPlanConfig.name}</strong> — {selectedPlanConfig.price} грн/міс.
+            Ви обрали: <strong>{selectedPlanConfig.name}</strong> — {selectedPlanConfig.price} грн / {selectedPlanConfig.durationDays} днів.
             Після відправки оплата буде перевірена вручну протягом 24 годин.
           </p>
 
@@ -317,7 +344,7 @@ export default function SubscriptionPage() {
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-800">
-              ⏳ Після відправки ваш план буде активовано протягом 24 годин після перевірки оплати адміністратором.
+              ⏳ Після відправки ваш план буде активовано протягом 24 годин після перевірки оплати адміністратором. Магазин стане онлайн одразу після підтвердження.
             </div>
 
             <div className="flex gap-3">
@@ -334,7 +361,7 @@ export default function SubscriptionPage() {
         </form>
       )}
 
-      {/* Payment history */}
+      {/* Subscription history */}
       {subscriptions.length > 0 && (
         <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Історія підписок</h2>
@@ -344,14 +371,23 @@ export default function SubscriptionPage() {
                 <div>
                   <p className="font-semibold text-gray-900">{sub.plan?.name}</p>
                   <p className="text-sm text-gray-500">{new Date(sub.createdAt).toLocaleDateString('uk-UA')}</p>
+                  {sub.expiryDate && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      До: {new Date(sub.expiryDate).toLocaleDateString('uk-UA')}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     sub.status === 'active'   ? 'bg-green-100 text-green-700' :
                     sub.status === 'pending'  ? 'bg-yellow-100 text-yellow-700' :
+                    sub.status === 'expired'  ? 'bg-red-100 text-red-600' :
                     'bg-gray-100 text-gray-600'
                   }`}>
-                    {sub.status === 'active' ? '✓ Активна' : sub.status === 'pending' ? '⏳ Очікує' : sub.status}
+                    {sub.status === 'active'   ? '✓ Активна' :
+                     sub.status === 'pending'  ? '⏳ Очікує' :
+                     sub.status === 'expired'  ? '✗ Закінчилась' :
+                     sub.status}
                   </span>
                   {sub.payment && <p className="text-xs text-gray-400 mt-1">{sub.payment.amount} грн</p>}
                 </div>
