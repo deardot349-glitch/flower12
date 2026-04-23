@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { getPlanConfig } from '@/lib/plans'
 import { UA_CITIES } from '@/lib/cities'
 
-type Tab = 'general' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'orders' | 'seo' | 'telegram' | 'danger'
+type Tab = 'general' | 'directory' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'orders' | 'seo' | 'telegram' | 'danger'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS: Record<string, string> = {
@@ -136,6 +136,7 @@ export default function SettingsPage() {
     orderNotifyEmail: '', orderNotifyEmailEnabled: false,
     requireCustomerEmail: false, showOrderTracking: true,
     seoTitle: '', seoDescription: '', seoKeywords: '',
+    tagline: '', tags: '',
   })
 
   const [weeklyHours, setWeeklyHours] = useState<WeeklyHours>(defaultHours)
@@ -188,6 +189,8 @@ export default function SettingsPage() {
           seoTitle: s.seoTitle || '',
           seoDescription: s.seoDescription || '',
           seoKeywords: s.seoKeywords || '',
+          tagline: s.tagline || '',
+          tags: s.tags || '',
         }))
         if (s.coverImageUrl) setCoverPreview(s.coverImageUrl)
         if (s.logoUrl) setLogoPreview(s.logoUrl)
@@ -275,7 +278,8 @@ export default function SettingsPage() {
   }
 
   const tabs: { id: Tab; label: string; icon: string; badge?: string }[] = [
-    { id: 'general',    label: 'Загальне',     icon: '🏪' },
+    { id: 'general',   label: 'Загальне',     icon: '🏪' },
+    { id: 'directory', label: 'Каталог',       icon: '🗂️' },
     { id: 'appearance', label: 'Дизайн',        icon: '🎨' },
     { id: 'contact',    label: 'Контакти',      icon: '📞' },
     { id: 'hours',      label: 'Години роботи', icon: '🕐' },
@@ -378,6 +382,74 @@ export default function SettingsPage() {
                     </Field>
                     <Toggle label="Власний букет на замовлення" hint="Клієнти зможуть скласти власний букет з вашого асортименту"
                       checked={shopData.allowCustomBouquet} onChange={v => set('allowCustomBouquet', v)} />
+                  </>
+                )}
+
+                {/* ══ DIRECTORY ══ */}
+                {activeTab === 'directory' && (
+                  <>
+                    <SectionTitle icon="🗂️" title="Профіль у каталозі" subtitle="Що бачать клієнти на сторінці /shops" />
+
+                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-2xl p-4 text-sm text-pink-800">
+                      <p className="font-bold mb-1">📍 Ваш магазин з'явиться в каталозі якщо:</p>
+                      <ul className="space-y-1 text-xs text-pink-700 list-disc pl-4">
+                        <li>У вас активний план Про або Бізнес</li>
+                        <li>Вказано місто магазину (вкладка Загальне)</li>
+                      </ul>
+                    </div>
+
+                    <Field label="Короткий слоган" hint="Одне речення — що робить ваш магазин особливим. Показується на картці в каталозі (макс. 80 символів).">
+                      <input type="text" value={shopData.tagline}
+                        onChange={e => set('tagline', e.target.value.slice(0, 80))}
+                        className={inputCls} placeholder="Найсвіжіші букети у Луцьку з доставкою за 2 години" />
+                      <div className="flex justify-end mt-1">
+                        <span className={`text-xs ${shopData.tagline.length > 70 ? 'text-amber-600' : 'text-gray-400'}`}>
+                          {shopData.tagline.length}/80
+                        </span>
+                      </div>
+                    </Field>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Спеціалізація / теги</label>
+                      <p className="text-xs text-gray-400 mb-3">Що ви продаєте? Клієнти бачать ці теги на картці магазину в каталозі.</p>
+                      <TagsInput value={shopData.tags} onChange={v => set('tags', v)} />
+                    </div>
+
+                    {/* Preview of how it looks in directory */}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-3">Попередній перегляд картки в каталозі</p>
+                      <div className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden">
+                        <div className="h-24 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${shopData.primaryColor}25, ${shopData.accentColor || '#a855f7'}30)` }}>
+                          <div className="absolute bottom-3 left-4">
+                            <div className="w-10 h-10 rounded-xl bg-gray-900 border border-white/10 flex items-center justify-center">
+                              <span className="text-sm font-bold" style={{ color: shopData.primaryColor }}>{shopData.name.charAt(0) || '🌸'}</span>
+                            </div>
+                          </div>
+                          {shopData.sameDayDelivery && (
+                            <div className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">⚡ Сьогодні</div>
+                          )}
+                          {planSlug === 'premium' && (
+                            <div className="absolute top-3 left-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500/80 to-purple-600/80 text-white border border-white/10">⭐ Бізнес</div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <p className="font-bold text-white text-sm">{shopData.name || 'Назва магазину'}</p>
+                          {(shopData.tagline || shopData.about) && (
+                            <p className="text-xs text-gray-400 mt-1 line-clamp-2">{shopData.tagline || shopData.about}</p>
+                          )}
+                          {shopData.city && (
+                            <p className="text-[11px] text-gray-500 mt-1.5">📍 {shopData.city}</p>
+                          )}
+                          {shopData.tags && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {shopData.tags.split(',').map(t => t.trim()).filter(Boolean).slice(0,4).map(tag => (
+                                <span key={tag} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/8 text-gray-400">{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </>
                 )}
 

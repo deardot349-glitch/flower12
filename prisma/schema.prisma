@@ -61,6 +61,8 @@ model Shop {
 
   // Basic Information
   about         String?
+  tagline       String?  // Short one-liner shown on directory cards (max 80 chars)
+  tags          String?  // Comma-separated specialties e.g. "Троянди,Весільні,Екзотика"
   logoUrl       String?
   coverImageUrl String?
 

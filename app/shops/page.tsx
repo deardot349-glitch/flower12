@@ -10,22 +10,25 @@ interface ShopCard {
   name: string
   slug: string
   city: string | null
-  country: string | null
   location: string | null
   about: string | null
+  tagline: string | null
+  tags: string | null
   coverImageUrl: string | null
   logoUrl: string | null
   primaryColor: string | null
   accentColor: string | null
   phoneNumber: string | null
   showPhone: boolean
+  whatsappNumber: string | null
+  showWhatsapp: boolean
   instagramHandle: string | null
   showInstagram: boolean
   telegramHandle: string | null
   showTelegram: boolean
   workingHours: string | null
-  deliveryTimeEstimate: string | null
   sameDayDelivery: boolean
+  allowCustomBouquet: boolean
   minimumOrderAmount: number | null
   currency: string
   plan: { slug: string }
@@ -33,103 +36,94 @@ interface ShopCard {
   _count: { flowers: number; orders: number }
 }
 
-function getStars(completedOrders: number): number {
-  if (completedOrders === 0) return 4.0
-  if (completedOrders < 5)  return 4.2
-  if (completedOrders < 15) return 4.5
-  if (completedOrders < 30) return 4.7
-  return 4.9
-}
+type SortKey = 'activity' | 'newest' | 'plan'
 
-function isOpenNow(workingHoursJson: string | null): { open: boolean; label: string; closeTime?: string } {
-  if (!workingHoursJson) return { open: false, label: '' }
+function isOpenNow(json: string | null): { open: boolean; label: string } {
+  if (!json) return { open: false, label: '' }
   try {
-    const hours = JSON.parse(workingHoursJson)
-    const now   = new Date()
-    const days  = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
-    const today = days[now.getDay()]
-    const day   = hours[today]
-    if (!day || day.closed) return { open: false, label: 'Зачинено сьогодні' }
-    const [oh, om] = day.open.split(':').map(Number)
-    const [ch, cm] = day.close.split(':').map(Number)
-    const nowMins   = now.getHours() * 60 + now.getMinutes()
-    const openMins  = oh * 60 + om
-    const closeMins = ch * 60 + cm
-    const isOpen = nowMins >= openMins && nowMins < closeMins
-    return {
-      open: isOpen,
-      label: isOpen ? `Відкрито до ${day.close}` : `Відкривається ${day.open}`,
-      closeTime: day.close,
-    }
-  } catch {
-    return { open: false, label: '' }
-  }
+    const h = JSON.parse(json)
+    const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+    const today = days[new Date().getDay()]
+    const d = h[today]
+    if (!d || d.closed) return { open: false, label: 'Зачинено' }
+    const now = new Date().getHours() * 60 + new Date().getMinutes()
+    const [oh, om] = d.open.split(':').map(Number)
+    const [ch, cm] = d.close.split(':').map(Number)
+    const open = now >= oh * 60 + om && now < ch * 60 + cm
+    return { open, label: open ? `до ${d.close}` : `з ${d.open}` }
+  } catch { return { open: false, label: '' } }
 }
 
-function currSym(currency: string) {
+function sym(currency: string) {
   return currency === 'UAH' ? '₴' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
 }
 
-function StarRating({ rating }: { rating: number }) {
-  const full = Math.floor(rating)
-  const empty = 5 - full
+function getStars(orders: number) {
+  if (orders === 0) return 4.0
+  if (orders < 5)  return 4.2
+  if (orders < 15) return 4.5
+  if (orders < 30) return 4.7
+  return 4.9
+}
+
+function Stars({ n }: { n: number }) {
   return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: full  }).map((_, i) => (
-        <svg key={`f${i}`} className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+    <span className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(i => (
+        <svg key={i} className={`w-3 h-3 ${i <= Math.round(n) ? 'text-amber-400' : 'text-gray-700'}`} fill="currentColor" viewBox="0 0 20 20">
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
         </svg>
       ))}
-      {Array.from({ length: empty }).map((_, i) => (
-        <svg key={`e${i}`} className="w-3.5 h-3.5 text-gray-200" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-        </svg>
-      ))}
-      <span className="text-xs text-gray-500 ml-1 font-medium">{rating.toFixed(1)}</span>
-    </div>
+      <span className="text-[11px] text-gray-400 ml-1 font-medium">{n.toFixed(1)}</span>
+    </span>
   )
 }
 
 export default function ShopsPage() {
   const [shops,        setShops]        = useState<ShopCard[]>([])
   const [cities,       setCities]       = useState<string[]>([])
-  const [selectedCity, setSelectedCity] = useState<string>('all')
+  const [selectedCity, setSelectedCity] = useState('all')
   const [search,       setSearch]       = useState('')
+  const [sort,         setSort]         = useState<SortKey>('activity')
+  const [filterSameDay, setFilterSameDay] = useState(false)
+  const [filterCustom,  setFilterCustom]  = useState(false)
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
 
-  const fetchShops = useCallback(async (city: string) => {
+  const fetchShops = useCallback(async (city: string, s: SortKey, sd: boolean, cu: boolean) => {
     setLoading(true); setError('')
     try {
-      const params = city !== 'all' ? `?city=${encodeURIComponent(city)}` : ''
-      const res  = await fetch(`/api/shops-directory${params}`)
+      const params = new URLSearchParams({ sort: s })
+      if (city !== 'all') params.set('city', city)
+      if (sd) params.set('sameDay', '1')
+      if (cu) params.set('custom',  '1')
+      const res  = await fetch(`/api/shops-directory?${params}`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Помилка завантаження')
-      setShops(data.shops || [])
+      if (!res.ok) throw new Error(data.error || 'Помилка')
+      setShops(data.shops  || [])
       setCities(data.cities || [])
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { fetchShops('all') }, [fetchShops])
-
-  const handleCityChange = (city: string) => { setSelectedCity(city); fetchShops(city) }
+  useEffect(() => { fetchShops(selectedCity, sort, filterSameDay, filterCustom) }, [fetchShops, selectedCity, sort, filterSameDay, filterCustom])
 
   const filtered = shops.filter(s =>
-    search.trim() === '' ||
+    !search.trim() ||
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     (s.city || '').toLowerCase().includes(search.toLowerCase()) ||
-    (s.about || '').toLowerCase().includes(search.toLowerCase())
+    (s.tagline || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.about   || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.tags    || '').toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <div className="min-h-screen bg-gray-950">
 
-      {/* ── Dark Hero Header ── */}
+      {/* ── Hero header ── */}
       <div className="relative overflow-hidden border-b border-white/[0.06]">
         <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: `radial-gradient(circle, #ffffff 1px, transparent 1px)`, backgroundSize: '28px 28px' }}
-        />
+          style={{ backgroundImage: `radial-gradient(circle, #ffffff 1px, transparent 1px)`, backgroundSize: '28px 28px' }} />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none">
           <div className="absolute top-0 left-1/4 w-64 h-64 bg-pink-600/15 rounded-full blur-[80px]" />
           <div className="absolute top-10 right-1/4 w-56 h-56 bg-purple-600/15 rounded-full blur-[70px]" />
@@ -152,25 +146,37 @@ export default function ShopsPage() {
             Знайдіть квіткову крамницю у вашому місті, перегляньте асортимент та зробіть замовлення
           </p>
 
-          {/* Search + city filter */}
+          {/* Search + city + sort */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Пошук магазину або міста..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500/50 focus:bg-white/8 text-sm transition-all" />
+                placeholder="Пошук магазину, міста, спеціалізації..."
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500/50 text-sm transition-all" />
             </div>
-            <div className="relative sm:w-56">
+
+            {/* City */}
+            <div className="relative sm:w-48">
               <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <select value={selectedCity} onChange={e => handleCityChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-pink-500/50 text-sm appearance-none transition-all">
+              <select value={selectedCity} onChange={e => setSelectedCity(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-pink-500/50 text-sm appearance-none">
                 <option value="all" className="bg-gray-900">Всі міста</option>
                 {cities.map(c => <option key={c} value={c} className="bg-gray-900">{c}</option>)}
                 {UA_CITIES.filter(c => !cities.includes(c)).map(c => <option key={c} value={c} className="bg-gray-900">{c}</option>)}
+              </select>
+            </div>
+
+            {/* Sort */}
+            <div className="relative sm:w-48">
+              <select value={sort} onChange={e => setSort(e.target.value as SortKey)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-pink-500/50 text-sm appearance-none">
+                <option value="activity" className="bg-gray-900">🔥 За активністю</option>
+                <option value="newest"   className="bg-gray-900">🆕 Спочатку нові</option>
+                <option value="plan"     className="bg-gray-900">⭐ За планом</option>
               </select>
             </div>
           </div>
@@ -180,33 +186,52 @@ export default function ShopsPage() {
       {/* ── Content ── */}
       <div className="max-w-6xl mx-auto px-5 py-8">
 
-        {/* City pills */}
-        {cities.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-7">
-            <button onClick={() => handleCityChange('all')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                selectedCity === 'all'
+        {/* Filter pills */}
+        <div className="flex flex-wrap gap-2 mb-5">
+          {/* City pills */}
+          <button onClick={() => setSelectedCity('all')}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+              selectedCity === 'all'
+                ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/25'
+                : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white'
+            }`}>
+            Всі міста
+          </button>
+          {cities.map(city => (
+            <button key={city} onClick={() => setSelectedCity(city)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                selectedCity === city
                   ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/25'
                   : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white'
               }`}>
-              Всі міста
+              {city}
             </button>
-            {cities.map(city => (
-              <button key={city} onClick={() => handleCityChange(city)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                  selectedCity === city
-                    ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/25'
-                    : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white'
-                }`}>
-                {city}
-              </button>
-            ))}
-          </div>
-        )}
+          ))}
 
-        {/* Stats */}
+          {/* Feature filters */}
+          <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+            <button onClick={() => setFilterSameDay(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                filterSameDay
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                  : 'bg-white/5 text-gray-500 border border-white/10 hover:text-amber-400 hover:border-amber-500/30'
+              }`}>
+              ⚡ Доставка сьогодні
+            </button>
+            <button onClick={() => setFilterCustom(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                filterCustom
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+                  : 'bg-white/5 text-gray-500 border border-white/10 hover:text-purple-400 hover:border-purple-500/30'
+              }`}>
+              🎨 Власний букет
+            </button>
+          </div>
+        </div>
+
+        {/* Count */}
         {!loading && (
-          <p className="text-sm text-gray-500 mb-7">
+          <p className="text-sm text-gray-500 mb-6">
             <span className="text-white font-semibold">{filtered.length}</span>{' '}
             {filtered.length === 1 ? 'магазин' : filtered.length < 5 ? 'магазини' : 'магазинів'}
             {selectedCity !== 'all' ? ` у місті ${selectedCity}` : ' по всій Україні'}
@@ -223,30 +248,26 @@ export default function ShopsPage() {
 
         {/* Error */}
         {error && !loading && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-5 py-4 rounded-2xl mb-6 text-sm">
-            ⚠️ {error}
-          </div>
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-5 py-4 rounded-2xl mb-6 text-sm">⚠️ {error}</div>
         )}
 
         {/* Empty */}
         {!loading && !error && filtered.length === 0 && (
           <div className="text-center py-24">
             <p className="text-5xl mb-4">🌸</p>
-            <h2 className="text-xl font-bold text-white mb-2">
-              {selectedCity !== 'all' ? `У місті ${selectedCity} магазинів поки немає` : 'Магазинів не знайдено'}
-            </h2>
-            <p className="text-gray-500 mb-6 text-sm">Спробуйте інший пошуковий запит або місто</p>
-            <button onClick={() => { setSearch(''); handleCityChange('all') }}
-              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm shadow-lg hover:from-pink-400 hover:to-purple-500 transition-all">
-              Показати всі магазини
+            <h2 className="text-xl font-bold text-white mb-2">Магазинів не знайдено</h2>
+            <p className="text-gray-500 mb-6 text-sm">Спробуйте інший запит або зніміть фільтри</p>
+            <button onClick={() => { setSearch(''); setSelectedCity('all'); setFilterSameDay(false); setFilterCustom(false) }}
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold text-sm shadow-lg">
+              Скинути фільтри
             </button>
           </div>
         )}
 
-        {/* Cards */}
+        {/* Cards grid */}
         {!loading && !error && filtered.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {filtered.map(shop => <ShopCardComponent key={shop.id} shop={shop} />)}
+            {filtered.map(shop => <ShopCard key={shop.id} shop={shop} />)}
           </div>
         )}
       </div>
@@ -263,18 +284,31 @@ export default function ShopsPage() {
   )
 }
 
-function ShopCardComponent({ shop }: { shop: ShopCard }) {
+// ─── Shop card ────────────────────────────────────────────────────────────────
+
+function ShopCard({ shop }: { shop: ShopCard }) {
   const rating   = getStars(shop._count.orders)
   const status   = isOpenNow(shop.workingHours)
   const primary  = shop.primaryColor || '#ec4899'
   const accent   = shop.accentColor  || '#a855f7'
-  const sym      = currSym(shop.currency)
+  const s        = sym(shop.currency)
   const inStock  = shop.flowers.filter(f => f.availability !== 'out_of_stock')
   const minPrice = inStock.length > 0 ? Math.min(...inStock.map(f => f.price)) : null
   const maxPrice = inStock.length > 0 ? Math.max(...inStock.map(f => f.price)) : null
+  const isPremium = shop.plan.slug === 'premium'
+  const tags = shop.tags ? shop.tags.split(',').map(t => t.trim()).filter(Boolean) : []
 
   return (
-    <div className="bg-gray-900 border border-white/[0.07] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-all group flex flex-col">
+    <div className={`relative flex flex-col rounded-2xl overflow-hidden border transition-all group ${
+      isPremium
+        ? 'bg-gray-900 border-white/[0.12] hover:border-pink-500/40 shadow-lg shadow-pink-900/10'
+        : 'bg-gray-900 border-white/[0.07] hover:border-white/[0.14]'
+    }`}>
+
+      {/* Premium glow ring */}
+      {isPremium && (
+        <div className="absolute inset-0 rounded-2xl pointer-events-none ring-1 ring-inset ring-pink-500/10" />
+      )}
 
       {/* Cover */}
       <div className="relative h-44 overflow-hidden flex-shrink-0">
@@ -287,32 +321,44 @@ function ShopCardComponent({ shop }: { shop: ShopCard }) {
             <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-15">🌸</div>
           </div>
         )}
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-transparent to-transparent" />
 
-        {/* Open badge */}
-        <div className="absolute top-3 left-3">
-          <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-            status.open
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'bg-gray-800/80 text-gray-400 border border-white/10'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${status.open ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-            {status.open ? 'Відкрито' : 'Зачинено'}
-          </div>
+        {/* Top badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          {/* Open/closed */}
+          {status.label && (
+            <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+              status.open
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-gray-800/80 text-gray-400 border border-white/10'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${status.open ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+              {status.open ? `Відкрито ${status.label}` : 'Зачинено'}
+            </div>
+          )}
         </div>
 
-        {/* Same-day badge */}
-        {shop.sameDayDelivery && (
-          <div className="absolute top-3 right-3">
-            <div className="text-[11px] font-bold px-2 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
+        {/* Top right badges */}
+        <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+          {isPremium && (
+            <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500/80 to-purple-600/80 text-white backdrop-blur-sm border border-white/10">
+              ⭐ Бізнес
+            </div>
+          )}
+          {shop.sameDayDelivery && (
+            <div className="text-[11px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
               ⚡ Сьогодні
             </div>
-          </div>
-        )}
+          )}
+          {shop.allowCustomBouquet && (
+            <div className="text-[11px] font-bold px-2 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full">
+              🎨 Конструктор
+            </div>
+          )}
+        </div>
 
-        {/* Logo bottom left */}
-        <div className="absolute bottom-3 left-4 flex items-end gap-3">
+        {/* Logo */}
+        <div className="absolute bottom-3 left-4">
           <div className="w-12 h-12 rounded-xl bg-gray-900 border border-white/10 flex items-center justify-center overflow-hidden shadow-xl">
             {shop.logoUrl
               ? <Image src={shop.logoUrl} alt="logo" width={48} height={48} className="object-cover" />
@@ -321,11 +367,11 @@ function ShopCardComponent({ shop }: { shop: ShopCard }) {
           </div>
         </div>
 
-        {/* Price range bottom right */}
+        {/* Price range */}
         {minPrice !== null && (
           <div className="absolute bottom-3 right-3">
             <div className="text-xs font-semibold text-white bg-black/40 border border-white/10 px-2.5 py-1 rounded-full backdrop-blur-sm">
-              {sym}{minPrice}{maxPrice !== minPrice ? `–${sym}${maxPrice}` : ''}
+              {s}{minPrice}{maxPrice !== minPrice ? `–${maxPrice}` : ''}
             </div>
           </div>
         )}
@@ -333,93 +379,101 @@ function ShopCardComponent({ shop }: { shop: ShopCard }) {
 
       {/* Body */}
       <div className="p-4 flex flex-col flex-1">
+
         {/* Name + rating */}
         <div className="mb-2">
-          <h3 className="font-bold text-white text-base leading-snug group-hover:text-pink-400 transition-colors line-clamp-1">
+          <h3 className={`font-bold text-base leading-snug line-clamp-1 transition-colors group-hover:text-pink-400 ${
+            isPremium ? 'text-white' : 'text-gray-100'
+          }`}>
             {shop.name}
           </h3>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <StarRating rating={rating} />
+          <div className="flex items-center gap-2 mt-1">
+            <Stars n={rating} />
             {shop._count.orders > 0 && (
-              <span className="text-xs text-gray-600">{shop._count.orders} замовлень</span>
+              <span className="text-xs text-gray-600">{shop._count.orders} зам.</span>
             )}
           </div>
         </div>
 
-        {/* Location + hours */}
-        <div className="flex flex-wrap items-center gap-3 mb-3">
-          {(shop.city || shop.location) && (
-            <span className="flex items-center gap-1 text-xs text-gray-500">
-              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {shop.city || shop.location}
-            </span>
-          )}
-          {status.label && (
-            <span className={`text-xs ${status.open ? 'text-emerald-500' : 'text-gray-500'}`}>
-              {status.label}
-            </span>
-          )}
-        </div>
-
-        {/* About */}
-        {shop.about && (
-          <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed flex-1">
-            {shop.about}
+        {/* Tagline or about */}
+        {(shop.tagline || shop.about) && (
+          <p className="text-xs text-gray-400 leading-relaxed mb-3 line-clamp-2">
+            {shop.tagline || shop.about}
           </p>
         )}
 
-        {/* Stats chips */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Location */}
+        {(shop.city || shop.location) && (
+          <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
+            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {shop.city || shop.location}
+          </div>
+        )}
+
+        {/* Specialty tags */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {tags.slice(0, 4).map(tag => (
+              <span key={tag}
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/8 text-gray-400">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Feature chips */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {shop._count.flowers > 0 && (
-            <div className="flex items-center gap-1 bg-white/5 border border-white/8 rounded-lg px-2.5 py-1">
-              <span className="text-xs text-gray-400">🌷</span>
-              <span className="text-xs font-semibold text-gray-300">{shop._count.flowers} букетів</span>
-            </div>
+            <span className="text-[11px] text-gray-400 bg-white/5 border border-white/8 px-2 py-0.5 rounded-lg font-medium">
+              🌷 {shop._count.flowers} букетів
+            </span>
           )}
           {shop.minimumOrderAmount && shop.minimumOrderAmount > 0 ? (
-            <div className="flex items-center gap-1 bg-white/5 border border-white/8 rounded-lg px-2.5 py-1">
-              <span className="text-xs text-gray-400">від</span>
-              <span className="text-xs font-semibold text-gray-300">{sym}{shop.minimumOrderAmount}</span>
-            </div>
+            <span className="text-[11px] text-gray-400 bg-white/5 border border-white/8 px-2 py-0.5 rounded-lg font-medium">
+              від {s}{shop.minimumOrderAmount}
+            </span>
           ) : null}
-          {shop.sameDayDelivery && (
-            <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1">
-              <span className="text-xs font-semibold text-amber-400">⚡ Швидка доставка</span>
-            </div>
-          )}
         </div>
 
-        {/* Flower preview */}
+        {/* Flower previews */}
         {inStock.length > 0 && (
           <div className="flex gap-1.5 mb-4">
             {inStock.slice(0, 3).map(f => (
-              <div key={f.id} className="flex-1 relative rounded-xl overflow-hidden bg-gray-800 border border-white/5" style={{ height: 68 }}>
+              <div key={f.id} className="flex-1 relative rounded-xl overflow-hidden bg-gray-800 border border-white/5" style={{ height: 64 }}>
                 {f.imageUrl
                   ? <Image src={f.imageUrl} alt={f.name} fill className="object-cover opacity-90" />
                   : <div className="absolute inset-0 flex items-center justify-center text-xl">🌸</div>
                 }
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-2">
-                  <p className="text-white text-[10px] font-bold text-center">{sym}{f.price}</p>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1 pb-1">
+                  <p className="text-white text-[10px] font-bold text-center">{s}{f.price}</p>
                 </div>
               </div>
             ))}
             {shop._count.flowers > 3 && (
-              <div className="w-14 rounded-xl bg-gray-800 border border-white/5 flex items-center justify-center text-xs font-bold text-gray-500">
+              <div className="w-12 rounded-xl bg-gray-800 border border-white/5 flex items-center justify-center text-xs font-bold text-gray-500">
                 +{shop._count.flowers - 3}
               </div>
             )}
           </div>
         )}
 
-        {/* Contact chips */}
+        {/* Contacts */}
         <div className="flex items-center gap-1.5 mb-4 flex-wrap">
           {shop.showPhone && shop.phoneNumber && (
             <a href={`tel:${shop.phoneNumber}`}
               className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-white bg-white/5 border border-white/8 px-2 py-1 rounded-lg transition-colors">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
               Дзвонити
+            </a>
+          )}
+          {shop.showWhatsapp && shop.whatsappNumber && (
+            <a href={`https://wa.me/${shop.whatsappNumber.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-green-400 bg-white/5 border border-white/8 px-2 py-1 rounded-lg transition-colors">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              WhatsApp
             </a>
           )}
           {shop.showInstagram && shop.instagramHandle && (
@@ -440,7 +494,7 @@ function ShopCardComponent({ shop }: { shop: ShopCard }) {
 
         {/* CTA */}
         <Link href={`/${shop.slug}`}
-          className="block w-full text-center py-3 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 hover:shadow-lg"
+          className="block w-full text-center py-3 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 hover:shadow-lg mt-auto"
           style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
           Переглянути магазин →
         </Link>
