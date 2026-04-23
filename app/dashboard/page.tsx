@@ -44,12 +44,13 @@ export default async function DashboardPage() {
     .filter(o => o.status === 'completed')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
 
-  // Trial detection: active premium sub with no payment = trial
+  // Show expiry countdown for any active subscription expiring within 4 days
   const activeSub = shop.subscriptions[0]
-  const isTrial = activeSub && activeSub.plan?.slug === 'premium' && !(activeSub as any).payment && activeSub.expiryDate
-  const trialDaysLeft = isTrial
-    ? Math.max(0, Math.ceil((new Date(activeSub.expiryDate!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+  const daysLeft = activeSub?.expiryDate
+    ? Math.max(0, Math.ceil((new Date(activeSub.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : null
+  const showExpiryBanner = daysLeft !== null && daysLeft <= 4
+  const trialDaysLeft = showExpiryBanner ? daysLeft : null
 
   const currencySymbol =
     shop.currency === 'UAH' ? '₴' :
@@ -108,35 +109,31 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Trial banner */}
+      {/* Plan expiry warning banner — shows when ≤4 days left */}
       {trialDaysLeft !== null && (
         <Link href="/dashboard/subscription"
-          className={`flex items-center justify-between gap-4 px-4 py-3 rounded-2xl mb-4 transition-all ${
-            trialDaysLeft <= 3
-              ? 'bg-red-50 border-2 border-red-300 hover:bg-red-100'
-              : 'bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 hover:border-emerald-300'
-          }`}>
+          className="flex items-center justify-between gap-4 px-4 py-3 rounded-2xl mb-4 transition-all bg-red-50 border-2 border-red-300 hover:bg-red-100">
           <div className="flex items-center gap-3">
-            <span className={`text-xl ${trialDaysLeft <= 3 ? 'animate-bounce' : ''}`}>
-              {trialDaysLeft <= 3 ? '⚠️' : '🎉'}
-            </span>
+            <span className="text-xl animate-bounce">⚠️</span>
             <div>
-              <p className={`text-sm font-bold ${trialDaysLeft <= 3 ? 'text-red-800' : 'text-emerald-800'}`}>
-                {trialDaysLeft <= 3 ? `Трайл закінчується через ${trialDaysLeft} днів!` : `14-денний трайл Преміум`}
+              <p className="text-sm font-bold text-red-800">
+                {trialDaysLeft === 0
+                  ? 'Магазин зараз офлайн — план закінчився'
+                  : `План закінчується через ${trialDaysLeft} ${trialDaysLeft === 1 ? 'день' : 'дні'}!`}
               </p>
-              <p className={`text-xs ${trialDaysLeft <= 3 ? 'text-red-600' : 'text-emerald-600'}`}>
-                {trialDaysLeft > 0 ? `Залишилось ${trialDaysLeft} із 14 днів — оберіть план щоб продовжити` : 'Трайл закінчився'}
+              <p className="text-xs text-red-600">
+                {trialDaysLeft === 0
+                  ? 'Оформіть підписку щоб відновити магазин'
+                  : `Оформіть підписку щоб магазин не зупинився → план ${activeSub?.plan?.name}`}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className={`text-center px-2.5 py-1.5 rounded-xl ${
-              trialDaysLeft <= 3 ? 'bg-red-100' : 'bg-white border border-emerald-200'
-            }`}>
-              <p className={`text-lg font-black tabular-nums leading-tight ${trialDaysLeft <= 3 ? 'text-red-700' : 'text-emerald-700'}`}>{trialDaysLeft}</p>
-              <p className={`text-[9px] font-bold ${trialDaysLeft <= 3 ? 'text-red-500' : 'text-emerald-500'}`}>днів</p>
+            <div className="text-center px-2.5 py-1.5 rounded-xl bg-red-100">
+              <p className="text-lg font-black tabular-nums leading-tight text-red-700">{trialDaysLeft}</p>
+              <p className="text-[9px] font-bold text-red-500">днів</p>
             </div>
-            <svg className={`w-4 h-4 ${trialDaysLeft <= 3 ? 'text-red-400' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>

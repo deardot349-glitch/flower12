@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getPlanConfig } from '@/lib/plans'
 
-async function getShopWithPlan(email: string) {
+async function getShop(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
-    include: { shop: { include: { plan: true } } },
+    include: { shop: true },
   })
   return user?.shop ?? null
 }
 
+// All plans can use delivery zones — it's no longer a paid differentiator.
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -19,19 +19,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const shop = await getShopWithPlan(session.user.email)
+    const shop = await getShop(session.user.email)
     if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
-    const planConfig = getPlanConfig(shop.plan.slug)
-
-    // If plan does not allow delivery zones, return empty array (not an error,
-    // so the dashboard page can show the gate UI gracefully)
-    if (!planConfig.allowDeliveryZones) {
-      return NextResponse.json({ zones: [], planAllows: false })
-    }
-
     const zones = await prisma.deliveryZone.findMany({
-      where: { shopId: shop.id },
+      where:   { shopId: shop.id },
       orderBy: { sortOrder: 'asc' },
     })
 
@@ -49,29 +41,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const shop = await getShopWithPlan(session.user.email)
+    const shop = await getShop(session.user.email)
     if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
-
-    const planConfig = getPlanConfig(shop.plan.slug)
-
-    // Check zone count limit before creating
-    const maxZones = planConfig.maxDeliveryZones ?? 1
-    if (maxZones !== -1) {
-      const count = await prisma.deliveryZone.count({ where: { shopId: shop.id } })
-      if (count >= maxZones) {
-        const limitLabel = maxZones === 1 ? '1 зону' : `${maxZones} зон`
-        return NextResponse.json(
-          { error: `Ваш план дозволяє максимум ${limitLabel} доставки. Перейдіть на Базовий або Преміум для більшої кількості.` },
-          { status: 403 }
-        )
-      }
-    }
 
     const body = await request.json()
 
-    // ── Validation ────────────────────────────────────────────────────────────
     if (!body.name?.trim()) {
-      return NextResponse.json({ error: 'Назва зони обов\'язкова' }, { status: 400 })
+      return NextResponse.json({ error: "Назва зони обов'язкова" }, { status: 400 })
     }
     const fee = parseFloat(body.fee)
     if (isNaN(fee) || fee < 0) {
@@ -85,14 +61,14 @@ export async function POST(request: Request) {
 
     const zone = await prisma.deliveryZone.create({
       data: {
-        shopId: shop.id,
-        name: body.name.trim(),
+        shopId:            shop.id,
+        name:              body.name.trim(),
         fee,
         estimatedMinHours: minHours,
         estimatedMaxHours: maxHours,
-        sameDayAvailable: body.sameDayAvailable ?? true,
-        minimumOrder: Math.max(0, parseFloat(body.minimumOrder) || 0),
-        active: body.active !== undefined ? Boolean(body.active) : true,
+        sameDayAvailable:  body.sameDayAvailable ?? true,
+        minimumOrder:      Math.max(0, parseFloat(body.minimumOrder) || 0),
+        active:            body.active !== undefined ? Boolean(body.active) : true,
       },
     })
 
