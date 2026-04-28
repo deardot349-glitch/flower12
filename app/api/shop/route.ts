@@ -4,25 +4,19 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getPlanConfig } from '@/lib/plans'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.shopId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!session?.user?.shopId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const shop = await prisma.shop.findUnique({
       where: { id: session.user.shopId },
       include: { plan: true },
     })
-
-    if (!shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
-    }
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
     return NextResponse.json({ shop })
   } catch (error: any) {
-    console.error('Shop fetch error:', error)
     return NextResponse.json({ error: 'Failed to fetch shop' }, { status: 500 })
   }
 }
@@ -30,9 +24,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.shopId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!session?.user?.shopId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
 
@@ -40,85 +32,98 @@ export async function PUT(request: Request) {
       where: { id: session.user.shopId },
       include: { plan: true },
     })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
-    if (!shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
-    }
-
-    const planConfig = getPlanConfig(shop.plan.slug)
-
-    // ── Enforce feature gates ──────────────────────────────────────────────────
-
-    // Cover photo: free plan cannot set a cover photo
-    const coverImageUrl = planConfig.allowCoverPhoto
-      ? (body.coverImageUrl ?? null)
-      : null  // silently strip it so the DB stays clean
-
-    // Logo: only premium can upload a logo
-    const logoUrl = planConfig.allowLogoUpload
-      ? (body.logoUrl ?? null)
-      : null
-
-    // Custom colours: only premium
-    const primaryColor = planConfig.allowCustomColors
-      ? (body.primaryColor || '#ec4899')
-      : '#ec4899'
-    const accentColor = planConfig.allowCustomColors
-      ? (body.accentColor || '#a855f7')
-      : '#a855f7'
+    const plan = getPlanConfig(shop.plan.slug)
 
     const updated = await prisma.shop.update({
       where: { id: shop.id },
       data: {
-        // General
-        name: body.name?.trim() || shop.name,
-        about: body.about?.trim() || null,
-        language: body.language || 'uk',
-        currency: body.currency || 'UAH',
-        timezone: body.timezone || 'Europe/Kyiv',
+        // ── General ──────────────────────────────────────────────────────────
+        name:         body.name?.trim()     || shop.name,
+        about:        body.about?.trim()    || null,
+        tagline:      body.tagline?.trim()  || null,
+        tags:         body.tags?.trim()     || null,
+        language:     body.language         || 'uk',
+        currency:     body.currency         || 'UAH',
+        timezone:     body.timezone         || 'Europe/Kyiv',
+        city:         body.city?.trim()     || null,
+        country:      body.country?.trim()  || null,
 
-        // Appearance (plan-gated above)
-        coverImageUrl,
-        logoUrl,
-        primaryColor,
-        accentColor,
+        // ── Appearance (plan-gated) ───────────────────────────────────────
+        coverImageUrl: plan.allowCoverPhoto  ? (body.coverImageUrl ?? null) : undefined,
+        logoUrl:       plan.allowLogoUpload  ? (body.logoUrl ?? null)       : undefined,
+        primaryColor:  plan.allowCustomColors ? (body.primaryColor || '#ec4899') : undefined,
+        accentColor:   plan.allowCustomColors ? (body.accentColor  || '#a855f7') : undefined,
         enableAnimations: body.enableAnimations ?? true,
-        ...(body.layoutStyle !== undefined ? { layoutStyle: body.layoutStyle || 'classic' } : {}),
+        layoutStyle:   body.layoutStyle || 'classic',
 
-        // Location & Contact (allowed on all plans — free gets a proper-looking page)
-        location: body.location?.trim() || null,
-        city: body.city?.trim() || null,
-        country: body.country?.trim() || null,
+        // ── Location ─────────────────────────────────────────────────────
+        location:      body.location?.trim()     || null,
         googleMapsUrl: body.googleMapsUrl?.trim() || null,
-        email: body.email?.trim() || null,
-        phoneNumber: body.phoneNumber?.trim() || null,
-        whatsappNumber: body.whatsappNumber?.trim() || null,
-        telegramHandle: body.telegramHandle?.trim() || null,
+
+        // ── Contact ──────────────────────────────────────────────────────
+        email:           body.email?.trim()           || null,
+        phoneNumber:     body.phoneNumber?.trim()     || null,
+        whatsappNumber:  body.whatsappNumber?.trim()  || null,
+        viberNumber:     body.viberNumber?.trim()     || null,
+        telegramHandle:  body.telegramHandle?.trim()  || null,
         instagramHandle: body.instagramHandle?.trim() || null,
 
-        // Working Hours (stored as JSON string)
+        showPhone:     body.showPhone     ?? true,
+        showEmail:     body.showEmail     ?? true,
+        showWhatsapp:  body.showWhatsapp  ?? true,
+        showViber:     body.showViber     ?? true,
+        showTelegram:  body.showTelegram  ?? true,
+        showInstagram: body.showInstagram ?? true,
+        showLocation:  body.showLocation  ?? true,
+
+        // ── Pickup ───────────────────────────────────────────────────────
+        pickupEnabled:      body.pickupEnabled      ?? false,
+        pickupAddress:      body.pickupAddress?.trim()      || null,
+        pickupInstructions: body.pickupInstructions?.trim() || null,
+
+        // ── Payment ──────────────────────────────────────────────────────
+        cashOnDelivery:  body.cashOnDelivery  ?? true,
+        cardOnDelivery:  body.cardOnDelivery  ?? true,
+        monojarUrl:      body.monojarUrl?.trim() || null,
+
+        // ── Working hours ─────────────────────────────────────────────────
         workingHours: body.workingHours || null,
 
-        // Delivery
-        sameDayDelivery: body.sameDayDelivery ?? true,
-        deliveryTimeEstimate: body.deliveryTimeEstimate?.trim() || null,
-        deliveryCutoffTime: body.deliveryCutoffTime || '14:00',
-        minimumOrderAmount: body.minimumOrderAmount ?? 0,
-        autoConfirmOrders: body.autoConfirmOrders ?? false,
-        requirePhoneVerify: body.requirePhoneVerify ?? false,
-        showDeliveryEstimate: body.showDeliveryEstimate ?? true,
-        allowSameDayOrders: body.allowSameDayOrders ?? true,
+        // ── Delivery ─────────────────────────────────────────────────────
+        sameDayDelivery:       body.sameDayDelivery       ?? true,
+        deliveryTimeEstimate:  body.deliveryTimeEstimate?.trim()  || null,
+        deliveryCutoffTime:    body.deliveryCutoffTime    || '14:00',
+        minimumOrderAmount:    body.minimumOrderAmount    ?? 0,
+        freeDeliveryFrom:      body.freeDeliveryFrom      ?? null,
+        showDeliveryEstimate:  body.showDeliveryEstimate  ?? true,
+        allowSameDayOrders:    body.allowSameDayOrders    ?? true,
+        allowScheduledDelivery: body.allowScheduledDelivery ?? false,
 
-        // Contact visibility
-        showPhone: body.showPhone ?? true,
-        showEmail: body.showEmail ?? true,
-        showWhatsapp: body.showWhatsapp ?? true,
-        showTelegram: body.showTelegram ?? true,
-        showInstagram: body.showInstagram ?? true,
-        showLocation: body.showLocation ?? true,
+        // ── Orders ────────────────────────────────────────────────────────
+        autoConfirmOrders:          body.autoConfirmOrders          ?? false,
+        requirePhoneVerify:         body.requirePhoneVerify         ?? false,
+        requireCustomerEmail:       body.requireCustomerEmail       ?? false,
+        orderNotifyEmail:           body.orderNotifyEmail?.trim()   || null,
+        orderNotifyEmailEnabled:    body.orderNotifyEmailEnabled     ?? false,
+        customerEmailNotifications: body.customerEmailNotifications  ?? true,
+        showOrderTracking:          body.showOrderTracking           ?? true,
+        orderIdPrefix:              body.orderIdPrefix?.trim()       || 'FL',
+        outOfStockBehavior:         body.outOfStockBehavior          || 'show_unavailable',
+        stockAlertThreshold:        body.stockAlertThreshold         ?? 5,
 
-        // Custom bouquet toggle — only Бізнес (premium) plan can enable it
-        allowCustomBouquet: planConfig.allowCustomBouquet
+        // ── SEO ──────────────────────────────────────────────────────────
+        seoTitle:       body.seoTitle?.trim()       || null,
+        seoDescription: body.seoDescription?.trim() || null,
+        seoKeywords:    body.seoKeywords?.trim()    || null,
+
+        // ── Legal ─────────────────────────────────────────────────────────
+        refundPolicy: body.refundPolicy?.trim() || null,
+        termsUrl:     body.termsUrl?.trim()     || null,
+
+        // ── Custom bouquet (plan-gated) ───────────────────────────────────
+        allowCustomBouquet: plan.allowCustomBouquet
           ? (body.allowCustomBouquet ?? true)
           : false,
       },
@@ -131,31 +136,18 @@ export async function PUT(request: Request) {
   }
 }
 
-// ── DELETE — owner permanently deletes their shop (and their account) ──────────────
-// This cascades: shop → flowers, orders, zones, subscriptions all deleted via Prisma cascade.
-// The User record is also deleted (cascade from User → Shop).
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Require a confirmation phrase in the body to prevent accidental deletes
     const body = await request.json().catch(() => ({}))
     if (body.confirm !== 'DELETE') {
-      return NextResponse.json(
-        { error: 'Send { confirm: "DELETE" } to confirm permanent deletion.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Send { confirm: "DELETE" } to confirm.' }, { status: 400 })
     }
-
-    // Delete the user — cascades to Shop, which cascades to everything else
     await prisma.user.delete({ where: { id: session.user.id } })
-
-    return NextResponse.json({ success: true, message: 'Магазин та акаунт видалено.' })
+    return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('Shop deletion error:', error)
     return NextResponse.json({ error: 'Failed to delete shop' }, { status: 500 })
   }
 }
@@ -163,40 +155,25 @@ export async function DELETE(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
+    const body   = await request.json()
+    const shop   = await prisma.shop.findFirst({ where: { ownerId: session.user.id }, include: { plan: true } })
+    if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
-    const shop = await prisma.shop.findFirst({
-      where: { ownerId: session.user.id },
-      include: { plan: true },
-    })
-
-    if (!shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
-    }
-
-    // Apply plan gate to coverImageUrl (same as PUT handler)
-    const planConfig = getPlanConfig(shop.plan.slug)
-
+    const plan = getPlanConfig(shop.plan.slug)
     const updated = await prisma.shop.update({
       where: { id: shop.id },
       data: {
-        location: body.location ?? null,
-        about: body.about ?? null,
+        location:     body.location     ?? null,
+        about:        body.about        ?? null,
         workingHours: body.workingHours ?? null,
-        // Only allow cover image if the plan permits it
-        ...(planConfig.allowCoverPhoto && body.coverImageUrl !== undefined
-          ? { coverImageUrl: body.coverImageUrl ?? null }
-          : {}),
+        ...(plan.allowCoverPhoto && body.coverImageUrl !== undefined
+          ? { coverImageUrl: body.coverImageUrl ?? null } : {}),
       },
     })
-
     return NextResponse.json({ success: true, shop: updated })
   } catch (error: any) {
-    console.error('Shop update error:', error)
     return NextResponse.json({ error: 'Failed to update shop' }, { status: 500 })
   }
 }

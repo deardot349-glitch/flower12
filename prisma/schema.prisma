@@ -66,6 +66,46 @@ model Shop {
   logoUrl       String?
   coverImageUrl String?
 
+  // SEO
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String?
+
+  // Additional contacts
+  viberNumber String?
+  showViber   Boolean @default(true)
+
+  // Pickup / self-collection
+  pickupEnabled      Boolean @default(false)
+  pickupAddress      String?
+  pickupInstructions String?
+
+  // Payment methods
+  cashOnDelivery  Boolean @default(true)
+  cardOnDelivery  Boolean @default(true)
+  monojarUrl      String?  // Monobank jar link
+  acceptedPayments String? // JSON array e.g. ["cash","card","monobank"]
+
+  // Delivery extras
+  freeDeliveryFrom Float?  // Free delivery above this order amount
+
+  // Order settings
+  orderIdPrefix              String?  @default("FL")
+  customerEmailNotifications Boolean  @default(true)
+  allowScheduledDelivery     Boolean  @default(false)
+  orderNotifyEmail           String?
+  orderNotifyEmailEnabled    Boolean  @default(false)
+  requireCustomerEmail       Boolean  @default(false)
+  showOrderTracking          Boolean  @default(true)
+
+  // Stock / catalog
+  outOfStockBehavior  String? @default("show_unavailable") // hide | show | show_unavailable
+  stockAlertThreshold Int?    @default(5)
+
+  // Legal
+  refundPolicy String?
+  termsUrl     String?
+
   // Location Settings
   location      String?
   city          String?
@@ -115,6 +155,9 @@ model Shop {
 
   // Custom Bouquet
   allowCustomBouquet Boolean @default(true)
+
+  // Directory
+  directoryFeatured Boolean @default(false)
 
   // Telegram Integration
   telegramChatId String?
