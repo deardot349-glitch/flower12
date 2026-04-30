@@ -251,7 +251,7 @@ export default function AssortmentPage() {
   const resetForm = () => {
     setShowForm(false); setError('')
     setEditingBouquet(null)
-    setBouquetForm({ name: '', price: '', imageUrl: '', availability: 'in_stock', description: '', madeAt: today, isCustom: false })
+    setBouquetForm({ name: '', price: '', compareAtPrice: '', category: '', imageUrl: '', availability: 'in_stock', description: '', madeAt: today, isCustom: false })
     setStockForm({ name: '', color: '', pricePerStem: '', stockCount: '', imageUrl: '' })
     setWrappingForm({ name: '', price: '', imageUrl: '' })
     setExtraForm({ name: '', description: '', price: '', imageUrl: '' })
