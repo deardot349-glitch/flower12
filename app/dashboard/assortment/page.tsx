@@ -6,7 +6,8 @@ import Link from 'next/link'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Bouquet {
-  id: string; name: string; price: number; imageUrl: string | null
+  id: string; name: string; price: number; compareAtPrice: number | null
+  category: string | null; imageUrl: string | null
   availability: string; description: string | null; madeAt: string | null
   isCustom: boolean
 }
@@ -173,11 +174,15 @@ export default function AssortmentPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [editingBouquet, setEditingBouquet] = useState<Bouquet | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', price: '', imageUrl: '', availability: 'in_stock', description: '', madeAt: '', isCustom: false })
+  const [editForm, setEditForm] = useState({
+    name: '', price: '', compareAtPrice: '', category: '',
+    imageUrl: '', availability: 'in_stock', description: '', madeAt: '', isCustom: false
+  })
 
   // Forms — each tab has its own imageUrl state so uploads don't conflict
   const [bouquetForm, setBouquetForm] = useState({
-    name: '', price: '', imageUrl: '', availability: 'in_stock', description: '', madeAt: today, isCustom: false
+    name: '', price: '', compareAtPrice: '', category: '', imageUrl: '',
+    availability: 'in_stock', description: '', madeAt: today, isCustom: false
   })
   const [stockForm, setStockForm] = useState({
     name: '', color: '', pricePerStem: '', stockCount: '', imageUrl: ''
@@ -255,10 +260,10 @@ export default function AssortmentPage() {
   const startEditBouquet = (b: Bouquet) => {
     setEditingBouquet(b)
     setEditForm({
-      name: b.name,
-      price: String(b.price),
-      imageUrl: b.imageUrl || '',
-      availability: b.availability,
+      name: b.name, price: String(b.price),
+      compareAtPrice: b.compareAtPrice ? String(b.compareAtPrice) : '',
+      category: b.category || '',
+      imageUrl: b.imageUrl || '', availability: b.availability,
       description: b.description || '',
       madeAt: b.madeAt ? b.madeAt.split('T')[0] : '',
       isCustom: b.isCustom ?? false
@@ -279,6 +284,8 @@ export default function AssortmentPage() {
         body: JSON.stringify({
           name: editForm.name.trim(),
           price,
+          compareAtPrice: editForm.compareAtPrice ? parseFloat(editForm.compareAtPrice) : null,
+          category: editForm.category.trim() || null,
           imageUrl: editForm.imageUrl || null,
           availability: editForm.availability,
           description: editForm.description.trim() || null,
@@ -306,6 +313,8 @@ export default function AssortmentPage() {
         body: JSON.stringify({
           name: bouquetForm.name.trim(),
           price,
+          compareAtPrice: bouquetForm.compareAtPrice ? parseFloat(bouquetForm.compareAtPrice) : null,
+          category: bouquetForm.category.trim() || null,
           imageUrl: bouquetForm.imageUrl || null,
           availability: bouquetForm.availability,
           description: bouquetForm.description.trim() || null,
@@ -537,6 +546,26 @@ export default function AssortmentPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Стара ціна / Знижка ({currencySymbol})</label>
+                    <input type="number" min="0" step="1" value={bouquetForm.compareAtPrice}
+                      onChange={e => setBouquetForm(p => ({ ...p, compareAtPrice: e.target.value }))}
+                      className={inputCls} placeholder="600 (викреслено)" />
+                    {bouquetForm.compareAtPrice && parseFloat(bouquetForm.compareAtPrice) > parseFloat(bouquetForm.price || '0') && (
+                      <p className="text-xs text-green-700 mt-1">🏷️ -{ Math.round((1 - parseFloat(bouquetForm.price||'0') / parseFloat(bouquetForm.compareAtPrice)) * 100)}% знижка</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Категорія</label>
+                    <input type="text" list="bouquet-cats" value={bouquetForm.category}
+                      onChange={e => setBouquetForm(p => ({ ...p, category: e.target.value }))}
+                      className={inputCls} placeholder="Троянди, Весілля, Екзотика..." />
+                    <datalist id="bouquet-cats">
+                      {['Троянди','Тюльпани','Піони','Орхідеї','Лілії','Весільні','Екзотика','Польові','Сухоцвіти','Сезонні'].map(c => <option key={c} value={c} />)}
+                    </datalist>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Дата виготовлення</label>
                     <input type="date" max={today} value={bouquetForm.madeAt}
                       onChange={e => setBouquetForm(p => ({ ...p, madeAt: e.target.value }))}
@@ -635,6 +664,23 @@ export default function AssortmentPage() {
                     <input type="number" required min="0" step="1" value={editForm.price}
                       onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
                       className={inputCls} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Стара ціна ({currencySymbol})</label>
+                    <input type="number" min="0" step="1" value={editForm.compareAtPrice}
+                      onChange={e => setEditForm(p => ({ ...p, compareAtPrice: e.target.value }))}
+                      className={inputCls} placeholder="Викреслена ціна (необов'язково)" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Категорія</label>
+                    <input type="text" list="edit-cats" value={editForm.category}
+                      onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))}
+                      className={inputCls} placeholder="Троянди, Весілля..." />
+                    <datalist id="edit-cats">
+                      {['Троянди','Тюльпани','Піони','Орхідеї','Лілії','Весільні','Екзотика','Польові','Сухоцвіти','Сезонні'].map(c => <option key={c} value={c} />)}
+                    </datalist>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -748,7 +794,18 @@ export default function AssortmentPage() {
                       </div>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${availColor}`}>{availLabel}</span>
                     </div>
-                    <p className="text-lg font-black text-pink-600">{currencySymbol}{b.price.toFixed(0)}</p>
+                    <p className="text-lg font-black text-pink-600">
+                      {currencySymbol}{b.price.toFixed(0)}
+                      {b.compareAtPrice && b.compareAtPrice > b.price && (
+                        <span className="ml-2 text-sm font-semibold text-gray-400 line-through">{currencySymbol}{b.compareAtPrice.toFixed(0)}</span>
+                      )}
+                      {b.compareAtPrice && b.compareAtPrice > b.price && (
+                        <span className="ml-1.5 text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">
+                          -{Math.round((1 - b.price / b.compareAtPrice) * 100)}%
+                        </span>
+                      )}
+                    </p>
+                    {b.category && <p className="text-[11px] text-gray-400 mt-0.5">{b.category}</p>}
                     {b.madeAt && (
                       <p className="text-xs text-purple-500 font-medium mt-0.5">
                         🕐 {ageStr} · {new Date(b.madeAt).toLocaleDateString('uk-UA')}

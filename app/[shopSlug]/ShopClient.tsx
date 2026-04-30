@@ -84,6 +84,13 @@ export default function ShopClient({ shop }: { shop: Shop }) {
   const [cartCount, setCartCount] = useState(0)
   const [sort, setSort] = useState<SortKey>('default')
 
+  // Promo code
+  const [promoCode, setPromoCode] = useState('')
+  const [promoValidating, setPromoValidating] = useState(false)
+  const [promoResult, setPromoResult] = useState<{
+    valid: boolean; discountAmount?: number; code?: string; type?: string; value?: number; error?: string
+  } | null>(null)
+
   const primary = shop.primaryColor || '#ec4899'
   const accent  = shop.accentColor  || '#a855f7'
   const layout  = shop.layoutStyle  || 'classic'
@@ -136,11 +143,29 @@ export default function ShopClient({ shop }: { shop: Shop }) {
     }
   }
 
+  const validatePromo = async () => {
+    if (!promoCode.trim() || !selectedFlower) return
+    setPromoValidating(true)
+    try {
+      const bouquetTotal = selectedFlower.price + (selectedZone?.fee || 0)
+      const res = await fetch('/api/discounts/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shopId: shop.id, code: promoCode.trim(), orderAmount: bouquetTotal }),
+      })
+      const data = await res.json()
+      setPromoResult(data)
+    } catch { setPromoResult({ valid: false, error: 'Помилка перевірки' }) }
+    finally { setPromoValidating(false) }
+  }
+
   const handleOrder = (flower: Flower) => {
     setSelectedFlower(flower)
     setShowModal(true)
     setCurrentStep(1)
     setDeliveryMethod(null)
+    setPromoCode('')
+    setPromoResult(null)
     // Auto-select single zone so fee is always applied
     setSelectedZone(shop.deliveryZones?.length === 1 ? shop.deliveryZones[0] : null)
     setSubmitStatus('idle')
@@ -151,6 +176,8 @@ export default function ShopClient({ shop }: { shop: Shop }) {
     setCurrentStep(1)
     setDeliveryMethod(null)
     setSelectedZone(null)
+    setPromoCode('')
+    setPromoResult(null)
     setFormData({ customerName: '', phone: '', email: '', address: '', city: '', zipCode: '', message: '' })
   }
 
@@ -166,6 +193,10 @@ export default function ShopClient({ shop }: { shop: Shop }) {
   const handleSubmit = async () => {
     setSubmitStatus('loading')
     const estimatedDelivery = getEstimatedDelivery()
+    const bouquetTotal = (selectedFlower?.price || 0) + (selectedZone?.fee || 0)
+    const discountAmount = promoResult?.valid ? (promoResult.discountAmount || 0) : 0
+    const finalTotal = Math.max(0, bouquetTotal - discountAmount)
+
     const orderMessage = [
       deliveryMethod === 'pickup' ? '🏪 САМОВИВІЗ' : '🚚 ДОСТАВКА',
       `Букет: ${selectedFlower?.name}`,
@@ -174,6 +205,7 @@ export default function ShopClient({ shop }: { shop: Shop }) {
       deliveryMethod === 'delivery' ? `\nАдреса:\n${formData.address}\n${formData.city} ${formData.zipCode}` : '',
       selectedZone ? `Зона: ${selectedZone.name} (${currencySymbol}${selectedZone.fee})` : '',
       estimatedDelivery ? `Доставка: ${estimatedDelivery}` : '',
+      promoResult?.valid ? `Промокод: ${promoResult.code} (-${currencySymbol}${discountAmount})` : '',
       formData.message ? `\nПобажання:\n${formData.message}` : '',
     ].filter(Boolean).join('\n').trim()
 
@@ -189,7 +221,9 @@ export default function ShopClient({ shop }: { shop: Shop }) {
           email: formData.email || undefined,
           message: orderMessage,
           deliveryMethod,
-          totalAmount: (selectedFlower?.price || 0) + (selectedZone?.fee || 0),
+          totalAmount: finalTotal,
+          discountCode: promoResult?.valid ? promoResult.code : null,
+          discountAmount: discountAmount > 0 ? discountAmount : null,
           deliveryAddress: deliveryMethod === 'delivery'
             ? { address: formData.address, city: formData.city, zipCode: formData.zipCode }
             : null,
@@ -773,8 +807,13 @@ export default function ShopClient({ shop }: { shop: Shop }) {
                     <p className="text-sm text-gray-400 mt-0.5">
                       {selectedFlower.name} ·{' '}
                       <span className="font-semibold" style={{ color: primary }}>
-                        {currencySymbol}{selectedFlower.price.toFixed(0)}
+                      {currencySymbol}{selectedFlower.price.toFixed(0)}
                       </span>
+                              {promoResult?.valid && (
+                                <span className="text-xs text-green-600 font-semibold ml-1">
+                                  (-{currencySymbol}{promoResult.discountAmount})
+                                </span>
+                              )}
                     </p>
                   </div>
                   <button onClick={closeModal}
@@ -982,9 +1021,22 @@ export default function ShopClient({ shop }: { shop: Shop }) {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-gray-900 text-sm truncate">{selectedFlower.name}</p>
-                              <p className="text-base font-bold mt-0.5" style={{ color: primary }}>
-                                {currencySymbol}{((selectedFlower.price) + (selectedZone?.fee || 0)).toFixed(0)}
-                              </p>
+                              <div className="mt-0.5">
+                                {promoResult?.valid ? (
+                                  <>
+                                    <span className="text-sm text-gray-400 line-through mr-1.5">
+                                      {currencySymbol}{((selectedFlower.price) + (selectedZone?.fee || 0)).toFixed(0)}
+                                    </span>
+                                    <span className="text-base font-bold" style={{ color: primary }}>
+                                      {currencySymbol}{Math.max(0, (selectedFlower.price) + (selectedZone?.fee || 0) - (promoResult.discountAmount || 0)).toFixed(0)}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <p className="text-base font-bold" style={{ color: primary }}>
+                                    {currencySymbol}{((selectedFlower.price) + (selectedZone?.fee || 0)).toFixed(0)}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {/* Details */}
@@ -1009,6 +1061,41 @@ export default function ShopClient({ shop }: { shop: Shop }) {
                           <textarea rows={3} value={formData.message}
                             onChange={e => setFormData({ ...formData, message: e.target.value })}
                             className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm resize-none focus:outline-none focus:border-pink-300" />
+                        </div>
+
+                        {/* Promo code */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-600">🏷️ Промокод <span className="text-gray-400 font-normal">(якщо є)</span></label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={promoCode}
+                              onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null) }}
+                              onKeyDown={e => e.key === 'Enter' && validatePromo()}
+                              placeholder="SPRING20"
+                              className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-mono uppercase focus:outline-none focus:border-pink-300 transition-colors"
+                            />
+                            <button
+                              type="button"
+                              onClick={validatePromo}
+                              disabled={promoValidating || !promoCode.trim()}
+                              className="px-4 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-sm font-bold disabled:opacity-40 transition-colors whitespace-nowrap"
+                            >
+                              {promoValidating ? '⏳' : 'Ок'}
+                            </button>
+                          </div>
+                          {promoResult?.valid && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
+                              <span className="text-green-600 text-sm">✅</span>
+                              <span className="text-xs font-bold text-green-700">
+                                -{currencySymbol}{promoResult.discountAmount} знижка!
+                                {promoResult.type === 'percentage' ? ` (${promoResult.value}%)` : ''}
+                              </span>
+                            </div>
+                          )}
+                          {promoResult && !promoResult.valid && (
+                            <p className="text-xs text-red-600 font-medium px-1">❌ {promoResult.error}</p>
+                          )}
                         </div>
 
                         {submitStatus === 'error' && (

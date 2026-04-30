@@ -18,6 +18,8 @@ export async function POST(request: Request) {
       deliveryMethod,
       deliveryAddress,
       totalAmount: bodyTotalAmount,
+      discountCode,
+      discountAmount,
     } = body
 
     if (!customerName?.trim() || !phone?.trim()) {
@@ -115,9 +117,21 @@ export async function POST(request: Request) {
         deliveryMethod:  deliveryMethod || null,
         deliveryAddress: deliveryAddressStr,
         totalAmount:     bodyTotalAmount ?? flower?.price ?? 0,
+        discountCode:    discountCode || null,
+        discountAmount:  discountAmount || null,
         status:          'pending',
       },
     })
+
+    // Increment discount code usage
+    if (discountCode) {
+      try {
+        await prisma.discountCode.updateMany({
+          where: { shopId: finalShopId, code: discountCode.toUpperCase() },
+          data: { usedCount: { increment: 1 } },
+        })
+      } catch { /* non-fatal */ }
+    }
 
     // ── Email notifications ───────────────────────────────────────────────────
     try {

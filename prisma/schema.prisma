@@ -176,6 +176,7 @@ model Shop {
   wrappingOptions WrappingOption[]
   deliveryZones   DeliveryZone[]
   customExtras    CustomExtra[]
+  discountCodes   DiscountCode[]
 }
 
 model DeliveryZone {
@@ -235,22 +236,26 @@ model Payment {
 }
 
 model Flower {
-  id           String    @id @default(cuid())
-  shopId       String
-  name         String
-  price        Float
-  imageUrl     String?
-  availability String    @default("in_stock")
-  description  String?
-  madeAt       DateTime?
-  isCustom     Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  shopId         String
+  name           String
+  price          Float
+  compareAtPrice Float?    // Strike-through "was" price for sales
+  category       String?   // e.g. "Троянди", "Весільні", "Екзотика"
+  imageUrl       String?
+  images         String?   // JSON array of extra image URLs
+  availability   String    @default("in_stock")
+  description    String?
+  madeAt         DateTime?
+  isCustom       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   shop   Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
   orders Order[]
 
   @@index([shopId, availability])
+  @@index([shopId, category])
   @@index([createdAt])
 }
 
@@ -300,19 +305,21 @@ model CustomExtra {
 model Order {
   id                    String    @id @default(cuid())
   shopId                String
-  // Optional FK to the ordered flower — allows analytics queries
   flowerId              String?
   customerName          String
   phone                 String
   email                 String?
   message               String?
+  ownerNotes            String?   // Private internal notes from the shop owner
   orderType             String    @default("inquiry")
   deliveryMethod        String?
   deliveryAddress       String?
-  deliveryZoneId        String?
+  deliveryZoneId        String?  
   deliveryFee           Float?    @default(0)
   estimatedDelivery     String?
   customBouquet         String?
+  discountCode          String?   // Applied promo code
+  discountAmount        Float?    @default(0)
   totalAmount           Float?    @default(0)
   status                String    @default("pending")
   paymentStatus         String    @default("unpaid")
@@ -321,10 +328,30 @@ model Order {
   updatedAt             DateTime  @updatedAt
 
   shop   Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  // Set-null on flower delete so orders survive product removal
   flower Flower? @relation(fields: [flowerId], references: [id], onDelete: SetNull)
 
   @@index([shopId, status])
   @@index([flowerId])
+  @@index([phone])
   @@index([createdAt])
+}
+
+model DiscountCode {
+  id             String    @id @default(cuid())
+  shopId         String
+  code           String    // Uppercase code e.g. SPRING20
+  type           String    @default("percentage") // percentage | fixed
+  value          Float     // e.g. 20 for 20% or 100 for ₴100 off
+  minOrderAmount Float?    @default(0)
+  maxUses        Int?      // null = unlimited
+  usedCount      Int       @default(0)
+  active         Boolean   @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, code])
+  @@index([shopId, active])
 }

@@ -46,8 +46,10 @@ const NAV_ITEMS = [
 ]
 
 const MORE_LINKS = [
-  { href: '/dashboard/subscription', emoji: '💳', label: 'Підписка', desc: 'Плани та оплата' },
-  { href: '/shops', emoji: '🏪', label: 'Каталог магазинів', desc: 'Всі флористи платформи' },
+  { href: '/dashboard/analytics',  emoji: '📊', label: 'Аналітика',          desc: 'Дохід, замовлення, клієнти' },
+  { href: '/dashboard/customers',  emoji: '👥', label: 'Клієнти',            desc: 'База покупців' },
+  { href: '/dashboard/subscription', emoji: '💳', label: 'Підписка',          desc: 'Плани та оплата' },
+  { href: '/shops',                emoji: '🏪', label: 'Каталог магазинів', desc: 'Всі флористи платформи' },
 ]
 
 export default function MobileBottomNav() {

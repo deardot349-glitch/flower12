@@ -5,9 +5,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getPlanConfig } from '@/lib/plans'
 import { UA_CITIES } from '@/lib/cities'
+import DiscountsTab from '@/components/DiscountsTab'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = 'general' | 'directory' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'payment' | 'orders' | 'seo' | 'telegram' | 'legal' | 'danger'
+type Tab = 'general' | 'directory' | 'appearance' | 'contact' | 'hours' | 'delivery' | 'payment' | 'orders' | 'discounts' | 'seo' | 'telegram' | 'legal' | 'danger'
 type DayHours = { open: string; close: string; closed: boolean }
 type WeeklyHours = Record<string, DayHours>
 
@@ -403,6 +404,7 @@ export default function SettingsPage() {
     { id: 'delivery',   label: 'Доставка',         icon: '🚚' },
     { id: 'payment',    label: 'Оплата',           icon: '💳' },
     { id: 'orders',     label: 'Замовлення',       icon: '📦' },
+    { id: 'discounts',  label: 'Промокоди',         icon: '🏷️' },
     { id: 'seo',        label: 'SEO',              icon: '🔍' },
     { id: 'telegram',   label: 'Telegram',         icon: '✈️', badge: plan.allowTelegram ? undefined : 'ПРО' },
     { id: 'legal',      label: 'Правові',          icon: '📄' },
@@ -870,6 +872,11 @@ export default function SettingsPage() {
                     )}
                   </div>
                 </>}
+
+                {/* ══════════ DISCOUNTS ══════════ */}
+                {activeTab === 'discounts' && (
+                  <DiscountsTab currency={shopData.currency} />
+                )}
 
                 {/* ══════════ SEO ══════════ */}
                 {activeTab === 'seo' && <>

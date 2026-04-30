@@ -13,9 +13,51 @@ interface Order {
   deliveryAddress: string | null
   totalAmount: number | null
   message: string | null
+  ownerNotes: string | null
+  discountCode: string | null
+  discountAmount: number | null
   createdAt: string
   updatedAt: string
   flowerId: string | null
+}
+
+// ── Internal notes component ─────────────────────────────────────────────────
+function OrderNotes({ orderId, initialNotes }: { orderId: string; initialNotes: string }) {
+  const [notes, setNotes] = useState(initialNotes)
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    await fetch('/api/orders/manage', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, ownerNotes: notes }),
+    })
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="px-5 pb-3">
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 font-semibold transition-colors">
+        <span>📝</span>
+        <span>{notes ? `Нотатка: ${notes.slice(0, 30)}${notes.length > 30 ? '...' : ''}` : 'Додати нотатку (видима тільки вам)'}</span>
+        <span className="text-gray-300">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all bg-gray-50"
+            placeholder="Внутрішня нотатка... (не показується клієнту)" />
+          <button onClick={save} disabled={saving}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? '⏳ Зберігаємо...' : saved ? '✅ Збережено' : '💾 Зберегти нотатку'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Status config ──────────────────────────────────────────────────────────────
@@ -416,6 +458,11 @@ export default function OrdersPage() {
                         <div>
                           <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Сума</div>
                           <div className="text-2xl font-black text-gray-900">₴{order.totalAmount}</div>
+                          {order.discountCode && (
+                            <div className="text-xs text-green-600 font-semibold mt-1">
+                              🏷️ {order.discountCode} -{order.discountAmount ? `₴${order.discountAmount}` : ''}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -434,6 +481,9 @@ export default function OrdersPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Internal owner notes */}
+                    <OrderNotes orderId={order.id} initialNotes={order.ownerNotes || ''} />
 
                     {/* Action buttons — grid on mobile so they never overflow */}
                     <div className="px-4 pb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:pb-5">

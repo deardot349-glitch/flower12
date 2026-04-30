@@ -50,10 +50,23 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
     }
 
-    const { orderId, status } = await request.json()
+    const { orderId, status, ownerNotes } = await request.json()
 
-    if (!orderId || !status) {
-      return NextResponse.json({ error: 'Order ID and status are required' }, { status: 400 })
+    if (!orderId) {
+      return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
+    }
+
+    // Notes-only update (no status change)
+    if (ownerNotes !== undefined && !status) {
+      const updated = await prisma.order.update({
+        where: { id: orderId },
+        data: { ownerNotes },
+      })
+      return NextResponse.json({ success: true, order: updated })
+    }
+
+    if (!status) {
+      return NextResponse.json({ error: 'Status required' }, { status: 400 })
     }
 
     const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'completed', 'cancelled']
