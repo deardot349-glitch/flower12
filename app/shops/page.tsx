@@ -102,7 +102,7 @@ export default function ShopsPage() {
       if (!res.ok) throw new Error(data.error || 'Помилка')
       setShops(data.shops  || [])
       setCities(data.cities || [])
-    } catch (e: any) { setError(e.message) }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Помилка') }
     finally { setLoading(false) }
   }, [])
 

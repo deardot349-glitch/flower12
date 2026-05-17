@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /admin
+Disallow: /api/
+Disallow: /dashboard/
+
+# Allow specific API endpoints that serve public data
+Allow: /api/shops-directory
+
+Sitemap: https://flowergoua.com/sitemap.xml

@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+
 // Telegram Bot service
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
@@ -13,7 +15,7 @@ function esc(s: string | null | undefined): string {
 
 export async function sendTelegramMessage(chatId: string, text: string, replyMarkup?: object) {
   if (!BOT_TOKEN) {
-    console.error('TELEGRAM_BOT_TOKEN not set')
+    logger.warn('telegram', 'TELEGRAM_BOT_TOKEN not set')
     return null
   }
 
@@ -29,12 +31,12 @@ export async function sendTelegramMessage(chatId: string, text: string, replyMar
 
     const data = await res.json()
     if (!data.ok) {
-      console.error('Telegram API error:', data)
+      logger.error('telegram/send', 'Telegram API error', { description: data.description, code: data.error_code })
       return { ok: false, error: data.description || 'Unknown error', error_code: data.error_code }
     }
     return data.result
-  } catch (err) {
-    console.error('Failed to send Telegram message:', err)
+  } catch {
+    logger.error('telegram/send', 'Failed to send Telegram message')
     return null
   }
 }
@@ -53,8 +55,8 @@ export async function editTelegramMessage(chatId: string, messageId: number, tex
     })
     const data = await res.json()
     return data.ok ? data.result : null
-  } catch (err) {
-    console.error('Failed to edit Telegram message:', err)
+  } catch {
+    logger.error('telegram/edit', 'Failed to edit Telegram message')
     return null
   }
 }
@@ -67,8 +69,8 @@ export async function answerCallbackQuery(callbackQueryId: string, text: string)
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ callback_query_id: callbackQueryId, text, show_alert: false }),
     })
-  } catch (err) {
-    console.error('Failed to answer callback query:', err)
+  } catch {
+    logger.warn('telegram/answer-callback', 'Failed to answer callback query')
   }
 }
 

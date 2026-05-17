@@ -4,73 +4,72 @@ import { authOptions } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_FILE_SIZE  = 5 * 1024 * 1024  // 5 MB
+const ALLOWED_TYPES  = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const ALLOWED_UPLOAD_TYPES = new Set(['cover', 'flower', 'logo', 'general'])
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
+    if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const formData = await request.formData()
-    const file = formData.get('file') as File
-    const type = formData.get('type') as string // 'cover' | 'flower' | 'logo'
-    
+    const file     = formData.get('file') as File | null
+    const type     = String(formData.get('type') || 'general').toLowerCase()
+
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    // ── Validate upload type ──────────────────────────────────────────────────
+    if (!ALLOWED_UPLOAD_TYPES.has(type)) {
+      return NextResponse.json({ error: 'Invalid upload type' }, { status: 400 })
+    }
+
+    // ── Validate MIME type ────────────────────────────────────────────────────
+    if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.' },
+        { error: 'Invalid file type. Only JPEG, PNG, WebP and GIF are allowed.' },
         { status: 400 }
       )
     }
 
-    // Validate file size
+    // ── Validate file size ────────────────────────────────────────────────────
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'File too large. Maximum size is 5MB.' },
+        { error: 'File too large. Maximum size is 5 MB.' },
         { status: 400 }
       )
     }
 
-    const bytes = await file.arrayBuffer()
+    const bytes  = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Generate unique filename
-    const timestamp = Date.now()
-    const randomString = Math.random().toString(36).substring(2, 8)
-    const ext = file.type.split('/')[1]
-    const filename = `${type || 'image'}-${timestamp}-${randomString}.${ext === 'jpeg' ? 'jpg' : ext}`
-    
-    // Upload to Cloudinary
-    const folder = type || 'general'
+    // ── Double-check size after reading (file.size can be spoofed in some clients)
+    if (buffer.byteLength > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File too large.' }, { status: 400 })
+    }
+
+    // ── Generate a safe filename ──────────────────────────────────────────────
+    const ext      = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1]
+    const rand     = Math.random().toString(36).slice(2, 8)
+    const filename = `${type}-${Date.now()}-${rand}.${ext}`
+    const folder   = type
+
     const url = await uploadToCloudinary(buffer, filename, folder)
 
-    logger.info('File uploaded to Cloudinary', {
-      userId: session.user.id,
-      shopId: session.user.shopId,
+    logger.info('upload', 'File uploaded', {
+      shopId:   session.user.shopId,
       filename,
       type,
-      size: buffer.length,
-      url
+      sizeKb:   Math.round(buffer.byteLength / 1024),
     })
 
-    return NextResponse.json({ 
-      success: true, 
-      url,
-      filename,
-      size: buffer.length
-    })
-  } catch (error: any) {
-    logger.error('Upload error', { error: error.message }, error)
-    return NextResponse.json(
-      { error: 'Failed to upload file' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: true, url, filename, size: buffer.byteLength })
+  } catch (error: unknown) {
+    logger.error('upload', 'Upload failed', { error: String(error) })
+    return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
   }
 }

@@ -1,5 +1,6 @@
 // Email service using Resend
 import { Resend } from 'resend'
+import { logger } from '@/lib/logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev'
@@ -54,8 +55,8 @@ export async function sendWelcomeEmail(email: string, shopName: string, shopSlug
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send welcome email:', error)
+  } catch {
+    logger.error('email/welcome', 'Failed to send welcome email', { to: email })
   }
 }
 
@@ -94,8 +95,8 @@ export async function sendVerificationEmail(email: string, shopName: string, tok
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send verification email:', error)
+  } catch {
+    logger.error('email/verify', 'Failed to send verification email', { to: email })
   }
 }
 
@@ -138,8 +139,8 @@ export async function sendOrderNotificationToShop(
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send order notification:', error)
+  } catch {
+    logger.error('email/order-notify', 'Failed to send order notification', { to: shopOwnerEmail })
   }
 }
 
@@ -177,8 +178,8 @@ export async function sendOrderConfirmationToCustomer(
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send customer confirmation:', error)
+  } catch {
+    logger.error('email/order-confirm', 'Failed to send customer confirmation', { to: customerEmail })
   }
 }
 
@@ -216,8 +217,8 @@ export async function sendPaymentApprovedEmail(
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send payment approved email:', error)
+  } catch {
+    logger.error('email/payment-approved', 'Failed to send payment approved email', { to: email })
   }
 }
 
@@ -257,8 +258,8 @@ export async function sendSubscriptionExpiryWarning(
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send expiry warning:', error)
+  } catch {
+    logger.error('email/expiry-warning', 'Failed to send expiry warning', { to: email })
   }
 }
 
@@ -293,7 +294,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string) 
         </body></html>
       `
     })
-  } catch (error) {
-    console.error('Failed to send password reset email:', error)
+  } catch {
+    logger.error('email/reset', 'Failed to send password reset email', { to: email })
   }
 }

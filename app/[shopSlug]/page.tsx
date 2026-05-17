@@ -1,5 +1,7 @@
-// Server component — fetched at request time, fully crawlable by search engines.
+// Server component — ISR with 60s revalidation for performance + freshness.
 // All interactive logic lives in ShopClient.tsx.
+
+export const revalidate = 60
 
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'

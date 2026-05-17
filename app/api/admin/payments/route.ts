@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendPaymentApprovedEmail } from '@/lib/email/service'
+import { logger } from '@/lib/logger'
 
 // ─── Auth helper ─────────────────────────────────────────────────────────────
-// ADMIN_SECRET must be set in .env — no hardcoded fallback in production.
 function checkAdminAuth(request: Request): boolean {
   const secret = process.env.ADMIN_SECRET
   if (!secret) {
-    console.error('ADMIN_SECRET env var is not set — admin routes are disabled')
+    logger.error('admin/auth', 'ADMIN_SECRET env var is not set')
     return false
   }
   const authHeader = request.headers.get('authorization')
@@ -27,9 +27,7 @@ export async function GET(request: Request) {
       include: {
         subscription: {
           include: {
-            shop: {
-              include: { owner: { select: { email: true } } },
-            },
+            shop: { include: { owner: { select: { email: true } } } },
             plan: true,
           },
         },
@@ -38,8 +36,8 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ payments: pendingPayments })
-  } catch (error: any) {
-    console.error('Admin fetch error:', error)
+  } catch (error: unknown) {
+    logger.error('admin/payments', 'Failed to fetch pending payments')
     return NextResponse.json({ error: 'Failed to fetch pending payments' }, { status: 500 })
   }
 }
@@ -52,11 +50,11 @@ export async function POST(request: Request) {
 
     const { paymentId, action, notes } = await request.json()
 
-    if (!paymentId || !action) {
-      return NextResponse.json(
-        { error: 'Payment ID and action are required' },
-        { status: 400 }
-      )
+    if (!paymentId || typeof paymentId !== 'string' || !action || typeof action !== 'string') {
+      return NextResponse.json({ error: 'Payment ID and action are required' }, { status: 400 })
+    }
+    if (!['approve', 'reject'].includes(action)) {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
 
     const payment = await prisma.payment.findUnique({
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
         subscription: {
           include: {
             plan: true,
-            shop: { include: { owner: true } },
+            shop: { include: { owner: { select: { email: true } } } },
           },
         },
       },
@@ -83,7 +81,7 @@ export async function POST(request: Request) {
       await prisma.$transaction([
         prisma.payment.update({
           where: { id: paymentId },
-          data: { status: 'approved', approvedAt: new Date(), notes: notes || null },
+          data:  { status: 'approved', approvedAt: new Date(), notes: notes || null },
         }),
         prisma.subscription.update({
           where: { id: payment.subscriptionId },
@@ -95,7 +93,6 @@ export async function POST(request: Request) {
         }),
         prisma.shop.update({
           where: { id: payment.subscription.shopId },
-          // Unsuspend the shop when payment is approved
           data:  {
             planId:          payment.subscription.planId,
             suspended:       false,
@@ -105,37 +102,33 @@ export async function POST(request: Request) {
         }),
       ])
 
-      try {
-        await sendPaymentApprovedEmail(
-          payment.subscription.shop.owner.email,
-          payment.subscription.shop.name,
-          payment.subscription.plan.name,
-          expiryDate
-        )
-      } catch (emailError) {
-        console.error('Failed to send approval email:', emailError)
-      }
+      sendPaymentApprovedEmail(
+        payment.subscription.shop.owner.email,
+        payment.subscription.shop.name,
+        payment.subscription.plan.name,
+        expiryDate
+      ).catch(() => {})
 
+      logger.info('admin/payments', 'Payment approved', { paymentId })
       return NextResponse.json({ success: true, message: 'Payment approved and subscription activated' })
     }
 
-    if (action === 'reject') {
-      await prisma.$transaction([
-        prisma.payment.update({
-          where: { id: paymentId },
-          data:  { status: 'rejected', notes: notes || null },
-        }),
-        prisma.subscription.update({
-          where: { id: payment.subscriptionId },
-          data:  { status: 'cancelled' },
-        }),
-      ])
-      return NextResponse.json({ success: true, message: 'Payment rejected' })
-    }
+    // action === 'reject'
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: paymentId },
+        data:  { status: 'rejected', notes: notes || null },
+      }),
+      prisma.subscription.update({
+        where: { id: payment.subscriptionId },
+        data:  { status: 'cancelled' },
+      }),
+    ])
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-  } catch (error: any) {
-    console.error('Admin action error:', error)
+    logger.info('admin/payments', 'Payment rejected', { paymentId })
+    return NextResponse.json({ success: true, message: 'Payment rejected' })
+  } catch (error: unknown) {
+    logger.error('admin/payments', 'Failed to process payment action', { error: String(error) })
     return NextResponse.json({ error: 'Failed to process action' }, { status: 500 })
   }
 }

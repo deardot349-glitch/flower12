@@ -5,6 +5,7 @@ import { slugify, generateUniqueSlug } from '@/lib/utils'
 import { PLANS, getPlanConfig } from '@/lib/plans'
 import { sendWelcomeEmail } from '@/lib/email/service'
 import { validatePassword, validateEmail, validateShopName } from '@/lib/validators'
+import { logger } from '@/lib/logger'
 
 function detectCardType(cardNumber: string): string {
   const first = cardNumber.replace(/\s/g, '')[0]
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
     try {
       await sendWelcomeEmail(email, shopName, slug)
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError)
+      logger.error('signup/welcome-email', 'Failed to send welcome email', { email })
     }
 
     const isPaid = selectedPlanConfig.price > 0
@@ -189,9 +190,11 @@ export async function POST(request: Request) {
         : 'Акаунт створено! У вас 7 днів безкоштовно (план Старт). Увійдіть та налаштуйте магазин!',
       user: { id: user.id, email: user.email, shopSlug: user.shop?.slug },
     })
-  } catch (error: any) {
-    console.error('Signup error:', error)
-    if (error.code === 'P2002') {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown'
+    const code = (error as any)?.code
+    logger.error('signup', 'Account creation failed', { code, msg })
+    if (code === 'P2002') {
       return NextResponse.json(
         { error: 'This email or shop name is already taken. Please try a different one.' },
         { status: 400 }

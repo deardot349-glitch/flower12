@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getPlanConfig } from '@/lib/plans'
+import { logger } from '@/lib/logger'
 
-// ─── Helper: detect card type from first digit ──────────────────────────────
 function detectCardType(cardNumber: string): string {
   const first = cardNumber.replace(/\s/g, '')[0]
   if (first === '4') return 'Visa'
@@ -16,25 +16,15 @@ function detectCardType(cardNumber: string): string {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-
     if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const {
-      planSlug,
-      cardNumber,  // used only to extract last4 + type — never persisted in full
-      cardExpiry,  // accepted but NOT stored
-      cardCvc,     // accepted but NOT stored
-      cardHolderName,
-    } = await request.json()
+    const { planSlug, cardNumber, cardExpiry, cardCvc, cardHolderName } = await request.json()
 
-    // Validation
+    // ── Validate required fields ──────────────────────────────────────────────
     if (!planSlug || !cardNumber || !cardExpiry || !cardCvc || !cardHolderName) {
-      return NextResponse.json(
-        { error: 'All payment fields are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'All payment fields are required' }, { status: 400 })
     }
 
     const planConfig = getPlanConfig(planSlug)
@@ -43,23 +33,24 @@ export async function POST(request: Request) {
     if (!plan) {
       return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 })
     }
-
     if (plan.price === 0) {
-      return NextResponse.json(
-        { error: 'Free plan does not require payment' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Free plan does not require payment' }, { status: 400 })
     }
 
-    // Extract only what we need — NEVER persist full card number, expiry, or CVC
+    // ── Extract only last 4 digits — NEVER persist full card details ──────────
     const rawNumber = cardNumber.replace(/\s/g, '')
-    if (rawNumber.length < 13 || rawNumber.length > 19) {
+    if (!/^\d{13,19}$/.test(rawNumber)) {
       return NextResponse.json({ error: 'Invalid card number' }, { status: 400 })
     }
     const last4    = rawNumber.slice(-4)
     const cardType = detectCardType(rawNumber)
 
-    // Create subscription + minimal payment record (no sensitive data)
+    const cleanHolderName = String(cardHolderName).trim().slice(0, 100)
+    if (!cleanHolderName) {
+      return NextResponse.json({ error: 'Cardholder name is required' }, { status: 400 })
+    }
+
+    // ── Create subscription with minimal payment record ───────────────────────
     const subscription = await prisma.subscription.create({
       data: {
         shopId: session.user.shopId,
@@ -69,39 +60,40 @@ export async function POST(request: Request) {
           create: {
             cardLast4:      last4,
             cardType,
-            cardHolderName: cardHolderName.trim(),
+            cardHolderName: cleanHolderName,
             amount:         plan.price,
             status:         'pending',
-            // cardNumber, cardExpiry, cardCvc are intentionally NOT stored
+            // Full card number, expiry, and CVV are intentionally NOT stored
           },
         },
       },
       include: { payment: true, plan: true },
     })
 
+    logger.info('subscriptions/post', 'New subscription request created', {
+      shopId:  session.user.shopId,
+      planSlug: plan.slug,
+      subId:   subscription.id,
+    })
+
     return NextResponse.json({
       success: true,
-      message:
-        'Заявку прийнято! Ваш план буде активовано після перевірки оплати (до 24 год).',
+      message: 'Заявку прийнято! Ваш план буде активовано після перевірки оплати (до 24 год).',
       subscription: {
         id:       subscription.id,
         status:   subscription.status,
         planName: subscription.plan.name,
       },
     })
-  } catch (error: any) {
-    console.error('Subscription error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process subscription' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    logger.error('subscriptions/post', 'Failed to process subscription', { error: String(error) })
+    return NextResponse.json({ error: 'Failed to process subscription' }, { status: 500 })
   }
 }
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-
     if (!session?.user?.shopId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -113,11 +105,8 @@ export async function GET() {
     })
 
     return NextResponse.json({ subscriptions })
-  } catch (error: any) {
-    console.error('Get subscriptions error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch subscriptions' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    logger.error('subscriptions/get', 'Failed to fetch subscriptions', { error: String(error) })
+    return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 })
   }
 }

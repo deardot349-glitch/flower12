@@ -58,8 +58,8 @@ export default function EditFlowerForm({ flower }: EditFlowerFormProps) {
       if (!res.ok) throw new Error(data.error || 'Помилка при збереженні')
       router.push('/dashboard/flowers')
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Помилка при збереженні')
     } finally {
       setLoading(false)
     }

@@ -19,7 +19,7 @@ function getDaysAge(dateStr: string): string {
   return `${diff} днів тому`
 }
 
-export default function AddFlowerForm({ shopId, currency = 'UAH' }: { shopId: string; currency?: string }) {
+export default function AddFlowerForm({ currency = 'UAH' }: { shopId?: string; currency?: string }) {
   const currencySymbol = currency === 'UAH' ? '₴' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'
   const router = useRouter()
   const { toast } = useToast()
@@ -66,7 +66,7 @@ export default function AddFlowerForm({ shopId, currency = 'UAH' }: { shopId: st
       const res = await fetch('/api/flowers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId, ...formData, price: parseFloat(formData.price), madeAt: formData.madeAt || null }),
+        body: JSON.stringify({ ...formData, price: parseFloat(formData.price), madeAt: formData.madeAt || null }),
       })
       if (!res.ok) throw new Error()
       toast({ variant: 'success', title: 'Букет додано!' })

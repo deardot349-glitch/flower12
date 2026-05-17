@@ -228,8 +228,8 @@ export default function AssortmentPage() {
       if (Array.isArray(stockRes.flowers)) setStockFlowers(stockRes.flowers)
       if (Array.isArray(wrappingRes.options)) setWrapping(wrappingRes.options)
       if (Array.isArray(extrasRes.extras)) setExtras(extrasRes.extras)
-    } catch (err) {
-      console.error('fetchAll error:', err)
+    } catch {
+      // Non-critical — app already loaded
     } finally {
       setPageLoading(false)
     }
@@ -296,7 +296,7 @@ export default function AssortmentPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Помилка збереження')
       notify('✅ Букет оновлено!'); setEditingBouquet(null); fetchAll()
-    } catch (err: any) { fail(err.message) }
+    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка збереження') }
     finally { setLoading(false) }
   }
 
@@ -325,7 +325,7 @@ export default function AssortmentPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Помилка збереження')
       notify('✅ Букет додано!'); resetForm(); fetchAll()
-    } catch (err: any) { fail(err.message) }
+    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка') }
     finally { setLoading(false) }
   }
 
@@ -343,7 +343,7 @@ export default function AssortmentPage() {
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Помилка') }
       notify('✅ Квітку додано!'); resetForm(); fetchAll()
-    } catch (err: any) { fail(err.message) }
+    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка') }
     finally { setLoading(false) }
   }
 
@@ -357,7 +357,7 @@ export default function AssortmentPage() {
       })
       if (!res.ok) throw new Error('Помилка')
       notify('✅ Упаковку додано!'); resetForm(); fetchAll()
-    } catch (err: any) { fail(err.message) }
+    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка') }
     finally { setLoading(false) }
   }
 
@@ -371,7 +371,7 @@ export default function AssortmentPage() {
       })
       if (!res.ok) throw new Error('Помилка')
       notify('✅ Елемент додано!'); resetForm(); fetchAll()
-    } catch (err: any) { fail(err.message) }
+    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка') }
     finally { setLoading(false) }
   }
 
@@ -599,7 +599,7 @@ export default function AssortmentPage() {
                     try {
                       const url = await handleUpload(file, 'flower')
                       setBouquetForm(p => ({ ...p, imageUrl: url }))
-                    } catch (err: any) { fail(err.message) }
+                    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка збереження') }
                   }}
                 />
                 {/* isCustom toggle */}
@@ -718,7 +718,7 @@ export default function AssortmentPage() {
                     try {
                       const url = await handleUpload(file, 'flower')
                       setEditForm(p => ({ ...p, imageUrl: url }))
-                    } catch (err: any) { fail(err.message) }
+                    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка завантаження') }
                   }}
                 />
                 {/* isCustom toggle */}
@@ -883,7 +883,7 @@ export default function AssortmentPage() {
                     try {
                       const url = await handleUpload(file, 'flower')
                       setStockForm(p => ({ ...p, imageUrl: url }))
-                    } catch (err: any) { fail(err.message) }
+                    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка завантаження') }
                   }}
                 />
                 <div className="flex gap-3 pt-2">
@@ -968,7 +968,7 @@ export default function AssortmentPage() {
                     try {
                       const url = await handleUpload(file, 'wrapping')
                       setWrappingForm(p => ({ ...p, imageUrl: url }))
-                    } catch (err: any) { fail(err.message) }
+                    } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка завантаження') }
                   }}
                 />
                 <div className="flex gap-3 pt-2">
@@ -1069,7 +1069,7 @@ export default function AssortmentPage() {
                         try {
                           const url = await handleUpload(file, 'extra')
                           setExtraForm(p => ({ ...p, imageUrl: url }))
-                        } catch (err: any) { fail(err.message) }
+                        } catch (err: unknown) { fail(err instanceof Error ? err.message : 'Помилка завантаження') }
                       }}
                     />
                     <div className="flex gap-3 pt-2">

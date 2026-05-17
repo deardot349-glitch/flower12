@@ -17,26 +17,52 @@ interface Flower {
 }
 
 interface Props {
-  flower: Flower
-  shopId: string
-  onClose: () => void
+  flower:    Flower
+  shopSlug:  string       // ← slug, never ID
+  onClose:   () => void
 }
 
-export default function OrderModal({ flower, shopId, onClose }: Props) {
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+export default function OrderModal({ flower, shopSlug, onClose }: Props) {
+  const [loading, setLoading]   = useState(false)
+  const [success, setSuccess]   = useState(false)
+  const [error,   setError]     = useState<string | null>(null)
   const [formData, setFormData] = useState({ customerName: '', phone: '', message: '' })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+
+    // Client-side validation before network call
+    if (!formData.customerName.trim() || formData.customerName.trim().length < 2) {
+      setError("Введіть ім'я (мінімум 2 символи)")
+      return
+    }
+    if (!formData.phone.trim() || !/^\+?[\d\s\-\(\)]{7,}$/.test(formData.phone)) {
+      setError('Введіть дійсний номер телефону')
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch('/api/orders', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId, flowerId: flower.id, ...formData }),
+        body:    JSON.stringify({
+          shopSlug,                     // server resolves shopId from slug
+          flowerId:     flower.id,
+          customerName: formData.customerName,
+          phone:        formData.phone,
+          message:      formData.message || undefined,
+        }),
       })
-      if (!response.ok) throw new Error()
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Не вдалося відправити замовлення.')
+        return
+      }
+
       setSuccess(true)
       setTimeout(() => {
         onClose()
@@ -44,8 +70,7 @@ export default function OrderModal({ flower, shopId, onClose }: Props) {
         setFormData({ customerName: '', phone: '', message: '' })
       }, 2500)
     } catch {
-      // TODO: replace with toast once wired at page level
-      alert('Не вдалося відправити замовлення. Спробуйте ще раз.')
+      setError('Сталася помилка. Перевірте інтернет і спробуйте знову.')
     } finally {
       setLoading(false)
     }
@@ -60,7 +85,7 @@ export default function OrderModal({ flower, shopId, onClose }: Props) {
               <CheckCircle2 className="h-14 w-14 text-green-500" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-1">Замовлення прийнято!</h2>
-            <p className="text-sm text-muted-foreground">Ми зв'яжемося з вами найближчим часом.</p>
+            <p className="text-sm text-muted-foreground">Ми зв&apos;яжемося з вами найближчим часом.</p>
           </div>
         ) : (
           <div className="px-6 pb-6 pt-2">
@@ -72,9 +97,15 @@ export default function OrderModal({ flower, shopId, onClose }: Props) {
               </DialogDescription>
             </DialogHeader>
 
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="customerName">Ім'я та прізвище *</Label>
+                <Label htmlFor="customerName">Ім&apos;я та прізвище *</Label>
                 <Input
                   id="customerName"
                   required
@@ -100,7 +131,7 @@ export default function OrderModal({ flower, shopId, onClose }: Props) {
               <div className="space-y-1.5">
                 <Label htmlFor="message">
                   Побажання{' '}
-                  <span className="text-muted-foreground font-normal">(необов'язково)</span>
+                  <span className="text-muted-foreground font-normal">(необов&apos;язково)</span>
                 </Label>
                 <Textarea
                   id="message"
@@ -112,24 +143,12 @@ export default function OrderModal({ flower, shopId, onClose }: Props) {
               </div>
 
               <div className="flex gap-3 pt-2 pb-1">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={onClose}
-                >
+                <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
                   Скасувати
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-[2]"
-                >
+                <Button type="submit" disabled={loading} className="flex-[2]">
                   {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Надсилаємо...
-                    </>
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Надсилаємо...</>
                   ) : (
                     'Замовити'
                   )}

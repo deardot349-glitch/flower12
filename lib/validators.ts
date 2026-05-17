@@ -1,145 +1,105 @@
 /**
- * Password validation with strong requirements
+ * Shared validation and sanitisation utilities.
+ *
+ * All functions are pure and have no side effects.
  */
-export function validatePassword(password: string): { 
-  valid: boolean
-  error?: string 
-} {
+
+// ── Password ──────────────────────────────────────────────────────────────────
+
+export function validatePassword(password: string): { valid: boolean; error?: string } {
   if (!password || password.length < 8) {
-    return { 
-      valid: false, 
-      error: 'Password must be at least 8 characters long' 
-    }
+    return { valid: false, error: 'Пароль має містити мінімум 8 символів' }
   }
-
+  if (password.length > 128) {
+    return { valid: false, error: 'Пароль занадто довгий (максимум 128 символів)' }
+  }
   if (!/[A-Z]/.test(password)) {
-    return { 
-      valid: false, 
-      error: 'Password must contain at least one uppercase letter (A-Z)' 
-    }
+    return { valid: false, error: 'Пароль має містити хоча б одну велику літеру (A–Z)' }
   }
-
   if (!/[a-z]/.test(password)) {
-    return { 
-      valid: false, 
-      error: 'Password must contain at least one lowercase letter (a-z)' 
-    }
+    return { valid: false, error: 'Пароль має містити хоча б одну малу літеру (a–z)' }
   }
-
   if (!/[0-9]/.test(password)) {
-    return { 
-      valid: false, 
-      error: 'Password must contain at least one number (0-9)' 
-    }
+    return { valid: false, error: 'Пароль має містити хоча б одну цифру (0–9)' }
   }
-
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    return { 
-      valid: false, 
-      error: 'Password must contain at least one special character (!@#$%^&*...)' 
-    }
+  if (!/[!@#$%^&*()\-_=+\[\]{};':"\\|,.<>/?`~]/.test(password)) {
+    return { valid: false, error: 'Пароль має містити хоча б один спеціальний символ (!@#$%...)' }
   }
-
   return { valid: true }
 }
 
-/**
- * Email validation
- */
-export function validateEmail(email: string): { 
-  valid: boolean
-  error?: string 
-} {
+// ── Email ─────────────────────────────────────────────────────────────────────
+
+export function validateEmail(email: string): { valid: boolean; error?: string } {
   if (!email || email.trim().length === 0) {
-    return { valid: false, error: 'Email is required' }
+    return { valid: false, error: 'Email обовʼязковий' }
   }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(email)) {
-    return { valid: false, error: 'Invalid email format' }
+  if (email.length > 254) {
+    return { valid: false, error: 'Email занадто довгий' }
   }
-
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { valid: false, error: 'Невірний формат email' }
+  }
   return { valid: true }
 }
 
-/**
- * Shop name validation
- */
-export function validateShopName(name: string): { 
-  valid: boolean
-  error?: string 
-} {
-  if (!name || name.trim().length === 0) {
-    return { valid: false, error: 'Shop name is required' }
-  }
+// ── Shop name ─────────────────────────────────────────────────────────────────
 
-  if (name.trim().length < 3) {
-    return { valid: false, error: 'Shop name must be at least 3 characters' }
-  }
-
-  if (name.trim().length > 50) {
-    return { valid: false, error: 'Shop name must be less than 50 characters' }
-  }
-
+export function validateShopName(name: string): { valid: boolean; error?: string } {
+  const trimmed = name?.trim()
+  if (!trimmed) return { valid: false, error: 'Назва магазину обовʼязкова' }
+  if (trimmed.length < 3) return { valid: false, error: 'Назва магазину має містити мінімум 3 символи' }
+  if (trimmed.length > 50) return { valid: false, error: 'Назва магазину має містити максимум 50 символів' }
   return { valid: true }
 }
 
-/**
- * Phone number validation (basic)
- */
-export function validatePhone(phone: string): { 
-  valid: boolean
-  error?: string 
-} {
-  if (!phone || phone.trim().length === 0) {
-    return { valid: false, error: 'Phone number is required' }
-  }
+// ── Phone ─────────────────────────────────────────────────────────────────────
 
-  // Remove spaces, dashes, parentheses
+export function validatePhone(phone: string): { valid: boolean; error?: string } {
+  if (!phone?.trim()) return { valid: false, error: 'Номер телефону обовʼязковий' }
   const cleaned = phone.replace(/[\s\-\(\)]/g, '')
-  
-  // Check if it contains only digits and optional + at start
-  if (!/^\+?\d{10,15}$/.test(cleaned)) {
-    return { 
-      valid: false, 
-      error: 'Invalid phone number format. Must be 10-15 digits.' 
-    }
+  if (!/^\+?\d{7,15}$/.test(cleaned)) {
+    return { valid: false, error: 'Невірний формат телефону. Введіть 7–15 цифр.' }
   }
-
   return { valid: true }
 }
 
-/**
- * Sanitize string input (remove HTML, scripts, etc.)
- */
-export function sanitizeString(input: string): string {
-  if (!input) return ''
-  
-  return input
-    .replace(/[<>]/g, '') // Remove < and >
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers like onclick=
-    .trim()
-}
+// ── URL ───────────────────────────────────────────────────────────────────────
 
-/**
- * Validate and sanitize URL
- */
-export function validateUrl(url: string): { 
-  valid: boolean
-  error?: string 
-} {
-  if (!url || url.trim().length === 0) {
-    return { valid: true } // URL is optional
-  }
-
+export function validateUrl(url: string): { valid: boolean; error?: string } {
+  if (!url?.trim()) return { valid: true } // optional
   try {
     const parsed = new URL(url)
     if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return { valid: false, error: 'URL must use HTTP or HTTPS' }
+      return { valid: false, error: 'URL має починатись з http:// або https://' }
     }
     return { valid: true }
   } catch {
-    return { valid: false, error: 'Invalid URL format' }
+    return { valid: false, error: 'Невірний формат URL' }
   }
+}
+
+// ── String sanitiser ──────────────────────────────────────────────────────────
+// Removes HTML tags and dangerous patterns to prevent XSS stored in plain text
+// fields (name, address, description, etc.).  For fields that will be rendered
+// inside HTML, additional output-encoding is always required.
+
+const DANGEROUS_PATTERNS = [
+  /<[^>]*>/g,           // HTML tags
+  /javascript\s*:/gi,   // javascript: URIs
+  /data\s*:/gi,         // data: URIs
+  /on\w+\s*=/gi,        // inline event handlers (onclick=, onmouseover=, …)
+  /<!--[\s\S]*?-->/g,   // HTML comments
+  /<!\[CDATA\[[\s\S]*?\]\]>/gi, // CDATA sections
+  /\bvbscript\s*:/gi,   // VBScript
+  /expression\s*\(/gi,  // CSS expression()
+]
+
+export function sanitizeString(input: string): string {
+  if (!input) return ''
+  let result = input
+  for (const pattern of DANGEROUS_PATTERNS) {
+    result = result.replace(pattern, '')
+  }
+  return result.trim()
 }

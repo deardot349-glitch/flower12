@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import CopyButton from '@/components/CopyButton'
 import { Progress } from '@/components/ui/progress'
@@ -8,9 +9,11 @@ import { Badge } from '@/components/ui/badge'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  if (!session) return null
+  if (!session) redirect('/login')
 
   const shopId = session.user.shopId
+  if (!shopId) redirect('/login')
+
   const shopSlug = session.user.shopSlug
 
   const shop = await prisma.shop.findUnique({

@@ -352,7 +352,7 @@ export default function SettingsPage() {
       if (type === 'cover') setCoverPreview(data.url)
       else setLogoPreview(data.url)
       notify('✅ Фото збережено!')
-    } catch (err: any) { setError(err.message) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Помилка завантаження') }
     finally { setUploading(null) }
   }
 
@@ -381,7 +381,7 @@ export default function SettingsPage() {
         setDeliveryZoneId(null)
       }
       notify('✅ Збережено!')
-    } catch (err: any) { setError(err.message) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Помилка') }
     finally { setLoading(false) }
   }
 
@@ -392,7 +392,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/shop', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: 'DELETE' }) })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error) }
       window.location.href = '/api/auth/signout?callbackUrl=/'
-    } catch (err: any) { setDeleteError(err.message); setDeleteLoading(false) }
+    } catch (err: unknown) { setDeleteError(err instanceof Error ? err.message : 'Помилка видалення'); setDeleteLoading(false) }
   }
 
   const tabs: { id: Tab; label: string; icon: string; badge?: string }[] = [
@@ -948,7 +948,7 @@ export default function SettingsPage() {
                               const data = await res.json()
                               if (!res.ok) throw new Error(data.error)
                               setTelegramConnected(true); setTelegramMsg(data.message)
-                            } catch (err: any) { setTelegramError(err.message) }
+                            } catch (err: unknown) { setTelegramError(err instanceof Error ? err.message : 'Помилка') }
                             finally { setTelegramLoading(false) }
                           }} className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50">
                             {telegramLoading ? 'Підключаємо...' : '🔗 Підключити Telegram'}

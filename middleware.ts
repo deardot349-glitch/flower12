@@ -6,16 +6,15 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   // ── Admin route protection ─────────────────────────────────────────────────
-  // Return a plain 404 to anyone who didn't arrive via the internal admin link.
-  // The admin panel itself sends ?_a=1 — anything else gets a 404.
-  // This makes the route undiscoverable by scanners and curious visitors.
-  // To access admin: navigate to /admin?_a=1  (or set it as a bookmark).
+  // Returns 404 to anyone who didn't supply the secret query param.
+  // This makes the route undiscoverable by scanners.
+  // Referer-based bypass was removed — it is trivially spoofable.
   if (path === '/admin' || path.startsWith('/admin/')) {
-    const hasAdminFlag = request.nextUrl.searchParams.has('_a')
-    // Allow if: has the flag, OR is an internal navigation (referer from same origin)
-    const referer = request.headers.get('referer') || ''
-    const sameOrigin = referer.includes(request.nextUrl.host)
-    if (!hasAdminFlag && !sameOrigin) {
+    const adminSecret = process.env.ADMIN_SECRET
+    const suppliedParam = request.nextUrl.searchParams.get('_a')
+
+    // If ADMIN_SECRET is not configured, block all access
+    if (!adminSecret || suppliedParam !== adminSecret) {
       return new NextResponse(null, { status: 404 })
     }
   }

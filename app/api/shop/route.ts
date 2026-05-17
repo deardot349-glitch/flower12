@@ -3,11 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getPlanConfig } from '@/lib/plans'
+import { logger } from '@/lib/logger'
+import { sanitizeString } from '@/lib/validators'
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.shopId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.shopId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const shop = await prisma.shop.findUnique({
       where: { id: session.user.shopId },
@@ -16,15 +20,28 @@ export async function GET() {
     if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
     return NextResponse.json({ shop })
-  } catch (error: any) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch shop' }, { status: 500 })
   }
+}
+
+// Helper: strip undefined fields so Prisma doesn't unintentionally clear them
+function defined<T>(val: T | undefined): T | undefined {
+  return val !== undefined ? val : undefined
+}
+
+// Helper: sanitize + trim a string, returning null if empty
+function clean(val: unknown, maxLen = 500): string | null {
+  if (val === null || val === undefined || val === '') return null
+  return sanitizeString(String(val).trim()).slice(0, maxLen) || null
 }
 
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.shopId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.shopId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json()
 
@@ -36,102 +53,146 @@ export async function PUT(request: Request) {
 
     const plan = getPlanConfig(shop.plan.slug)
 
+    // ── Validate known enum fields ────────────────────────────────────────────
+    const VALID_LAYOUTS      = ['classic', 'modern', 'list', 'bold']
+    const VALID_OOS_BEHAVIOR = ['show_unavailable', 'hide', 'show_notify']
+    const VALID_CURRENCIES   = ['UAH', 'USD', 'EUR', 'GBP', 'PLN']
+    const VALID_LANGUAGES    = ['uk', 'en', 'pl']
+
+    if (body.layoutStyle && !VALID_LAYOUTS.includes(body.layoutStyle)) {
+      return NextResponse.json({ error: 'Invalid layout style' }, { status: 400 })
+    }
+    if (body.outOfStockBehavior && !VALID_OOS_BEHAVIOR.includes(body.outOfStockBehavior)) {
+      return NextResponse.json({ error: 'Invalid out-of-stock behavior' }, { status: 400 })
+    }
+    if (body.currency && !VALID_CURRENCIES.includes(body.currency)) {
+      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 })
+    }
+    if (body.language && !VALID_LANGUAGES.includes(body.language)) {
+      return NextResponse.json({ error: 'Invalid language' }, { status: 400 })
+    }
+
+    // ── Validate numeric fields ───────────────────────────────────────────────
+    let minimumOrderAmount: number | undefined
+    if (body.minimumOrderAmount !== undefined) {
+      minimumOrderAmount = parseFloat(body.minimumOrderAmount)
+      if (isNaN(minimumOrderAmount) || minimumOrderAmount < 0) {
+        return NextResponse.json({ error: 'Invalid minimum order amount' }, { status: 400 })
+      }
+    }
+
+    let freeDeliveryFrom: number | null | undefined
+    if (body.freeDeliveryFrom !== undefined) {
+      if (body.freeDeliveryFrom === null || body.freeDeliveryFrom === '') {
+        freeDeliveryFrom = null
+      } else {
+        freeDeliveryFrom = parseFloat(body.freeDeliveryFrom)
+        if (isNaN(freeDeliveryFrom) || freeDeliveryFrom < 0) {
+          return NextResponse.json({ error: 'Invalid free delivery amount' }, { status: 400 })
+        }
+      }
+    }
+
+    // ── Build update payload ──────────────────────────────────────────────────
     const updated = await prisma.shop.update({
       where: { id: shop.id },
       data: {
         // ── General ──────────────────────────────────────────────────────────
-        name:         body.name?.trim()     || shop.name,
-        about:        body.about?.trim()    || null,
-        tagline:      body.tagline?.trim()  || null,
-        tags:         body.tags?.trim()     || null,
-        language:     body.language         || 'uk',
-        currency:     body.currency         || 'UAH',
-        timezone:     body.timezone         || 'Europe/Kyiv',
-        city:         body.city?.trim()     || null,
-        country:      body.country?.trim()  || null,
+        ...(body.name !== undefined     ? { name:     clean(body.name, 100)     || shop.name } : {}),
+        ...(body.about !== undefined    ? { about:    clean(body.about, 1000)   } : {}),
+        ...(body.tagline !== undefined  ? { tagline:  clean(body.tagline, 200)  } : {}),
+        ...(body.tags !== undefined     ? { tags:     clean(body.tags, 300)     } : {}),
+        ...(body.language !== undefined ? { language: body.language             } : {}),
+        ...(body.currency !== undefined ? { currency: body.currency             } : {}),
+        ...(body.timezone !== undefined ? { timezone: clean(body.timezone, 60)  } : {}),
+        ...(body.city !== undefined     ? { city:     clean(body.city, 100)     } : {}),
+        ...(body.country !== undefined  ? { country:  clean(body.country, 100)  } : {}),
 
-        // ── Appearance (plan-gated) ───────────────────────────────────────
-        coverImageUrl: plan.allowCoverPhoto  ? (body.coverImageUrl ?? null) : undefined,
-        logoUrl:       plan.allowLogoUpload  ? (body.logoUrl ?? null)       : undefined,
-        primaryColor:  plan.allowCustomColors ? (body.primaryColor || '#ec4899') : undefined,
-        accentColor:   plan.allowCustomColors ? (body.accentColor  || '#a855f7') : undefined,
-        enableAnimations: body.enableAnimations ?? true,
-        layoutStyle:   body.layoutStyle || 'classic',
+        // ── Appearance (plan-gated) ───────────────────────────────────────────
+        ...(plan.allowCoverPhoto  && body.coverImageUrl  !== undefined ? { coverImageUrl:  clean(body.coverImageUrl,  500) } : {}),
+        ...(plan.allowLogoUpload  && body.logoUrl        !== undefined ? { logoUrl:        clean(body.logoUrl,        500) } : {}),
+        ...(plan.allowCustomColors && body.primaryColor  !== undefined ? { primaryColor:   clean(body.primaryColor,  20) || '#ec4899' } : {}),
+        ...(plan.allowCustomColors && body.accentColor   !== undefined ? { accentColor:    clean(body.accentColor,   20) || '#a855f7' } : {}),
+        ...(body.enableAnimations !== undefined ? { enableAnimations: Boolean(body.enableAnimations) } : {}),
+        ...(body.layoutStyle      !== undefined ? { layoutStyle: body.layoutStyle  } : {}),
 
-        // ── Location ─────────────────────────────────────────────────────
-        location:      body.location?.trim()     || null,
-        googleMapsUrl: body.googleMapsUrl?.trim() || null,
+        // ── Location ─────────────────────────────────────────────────────────
+        ...(body.location     !== undefined ? { location:     clean(body.location, 300)     } : {}),
+        ...(body.googleMapsUrl !== undefined ? { googleMapsUrl: clean(body.googleMapsUrl, 500) } : {}),
 
-        // ── Contact ──────────────────────────────────────────────────────
-        email:           body.email?.trim()           || null,
-        phoneNumber:     body.phoneNumber?.trim()     || null,
-        whatsappNumber:  body.whatsappNumber?.trim()  || null,
-        viberNumber:     body.viberNumber?.trim()     || null,
-        telegramHandle:  body.telegramHandle?.trim()  || null,
-        instagramHandle: body.instagramHandle?.trim() || null,
+        // ── Contact ──────────────────────────────────────────────────────────
+        ...(body.email           !== undefined ? { email:           clean(body.email, 254)           } : {}),
+        ...(body.phoneNumber     !== undefined ? { phoneNumber:     clean(body.phoneNumber, 30)      } : {}),
+        ...(body.whatsappNumber  !== undefined ? { whatsappNumber:  clean(body.whatsappNumber, 30)   } : {}),
+        ...(body.viberNumber     !== undefined ? { viberNumber:     clean(body.viberNumber, 30)      } : {}),
+        ...(body.telegramHandle  !== undefined ? { telegramHandle:  clean(body.telegramHandle, 60)   } : {}),
+        ...(body.instagramHandle !== undefined ? { instagramHandle: clean(body.instagramHandle, 60)  } : {}),
 
-        showPhone:     body.showPhone     ?? true,
-        showEmail:     body.showEmail     ?? true,
-        showWhatsapp:  body.showWhatsapp  ?? true,
-        showViber:     body.showViber     ?? true,
-        showTelegram:  body.showTelegram  ?? true,
-        showInstagram: body.showInstagram ?? true,
-        showLocation:  body.showLocation  ?? true,
+        ...(body.showPhone     !== undefined ? { showPhone:     Boolean(body.showPhone)     } : {}),
+        ...(body.showEmail     !== undefined ? { showEmail:     Boolean(body.showEmail)     } : {}),
+        ...(body.showWhatsapp  !== undefined ? { showWhatsapp:  Boolean(body.showWhatsapp)  } : {}),
+        ...(body.showViber     !== undefined ? { showViber:     Boolean(body.showViber)     } : {}),
+        ...(body.showTelegram  !== undefined ? { showTelegram:  Boolean(body.showTelegram)  } : {}),
+        ...(body.showInstagram !== undefined ? { showInstagram: Boolean(body.showInstagram) } : {}),
+        ...(body.showLocation  !== undefined ? { showLocation:  Boolean(body.showLocation)  } : {}),
 
-        // ── Pickup ───────────────────────────────────────────────────────
-        pickupEnabled:      body.pickupEnabled      ?? false,
-        pickupAddress:      body.pickupAddress?.trim()      || null,
-        pickupInstructions: body.pickupInstructions?.trim() || null,
+        // ── Pickup ───────────────────────────────────────────────────────────
+        ...(body.pickupEnabled      !== undefined ? { pickupEnabled:      Boolean(body.pickupEnabled)               } : {}),
+        ...(body.pickupAddress      !== undefined ? { pickupAddress:      clean(body.pickupAddress, 300)            } : {}),
+        ...(body.pickupInstructions !== undefined ? { pickupInstructions: clean(body.pickupInstructions, 500)       } : {}),
 
-        // ── Payment ──────────────────────────────────────────────────────
-        cashOnDelivery:  body.cashOnDelivery  ?? true,
-        cardOnDelivery:  body.cardOnDelivery  ?? true,
-        monojarUrl:      body.monojarUrl?.trim() || null,
+        // ── Payment ──────────────────────────────────────────────────────────
+        ...(body.cashOnDelivery !== undefined ? { cashOnDelivery: Boolean(body.cashOnDelivery) } : {}),
+        ...(body.cardOnDelivery !== undefined ? { cardOnDelivery: Boolean(body.cardOnDelivery) } : {}),
+        ...(body.monojarUrl     !== undefined ? { monojarUrl:     clean(body.monojarUrl, 500)  } : {}),
 
-        // ── Working hours ─────────────────────────────────────────────────
-        workingHours: body.workingHours || null,
+        // ── Working hours ─────────────────────────────────────────────────────
+        ...(body.workingHours !== undefined ? { workingHours: body.workingHours || null } : {}),
 
-        // ── Delivery ─────────────────────────────────────────────────────
-        sameDayDelivery:       body.sameDayDelivery       ?? true,
-        deliveryTimeEstimate:  body.deliveryTimeEstimate?.trim()  || null,
-        deliveryCutoffTime:    body.deliveryCutoffTime    || '14:00',
-        minimumOrderAmount:    body.minimumOrderAmount    ?? 0,
-        freeDeliveryFrom:      body.freeDeliveryFrom      ?? null,
-        showDeliveryEstimate:  body.showDeliveryEstimate  ?? true,
-        allowSameDayOrders:    body.allowSameDayOrders    ?? true,
-        allowScheduledDelivery: body.allowScheduledDelivery ?? false,
+        // ── Delivery ─────────────────────────────────────────────────────────
+        ...(body.sameDayDelivery        !== undefined ? { sameDayDelivery:       Boolean(body.sameDayDelivery)                       } : {}),
+        ...(body.deliveryTimeEstimate   !== undefined ? { deliveryTimeEstimate:  clean(body.deliveryTimeEstimate, 100)               } : {}),
+        ...(body.deliveryCutoffTime     !== undefined ? { deliveryCutoffTime:    clean(body.deliveryCutoffTime, 10) || '14:00'       } : {}),
+        ...(minimumOrderAmount          !== undefined ? { minimumOrderAmount                                                         } : {}),
+        ...(freeDeliveryFrom            !== undefined ? { freeDeliveryFrom                                                           } : {}),
+        ...(body.showDeliveryEstimate   !== undefined ? { showDeliveryEstimate:  Boolean(body.showDeliveryEstimate)                  } : {}),
+        ...(body.allowSameDayOrders     !== undefined ? { allowSameDayOrders:    Boolean(body.allowSameDayOrders)                    } : {}),
+        ...(body.allowScheduledDelivery !== undefined ? { allowScheduledDelivery: Boolean(body.allowScheduledDelivery)               } : {}),
 
-        // ── Orders ────────────────────────────────────────────────────────
-        autoConfirmOrders:          body.autoConfirmOrders          ?? false,
-        requirePhoneVerify:         body.requirePhoneVerify         ?? false,
-        requireCustomerEmail:       body.requireCustomerEmail       ?? false,
-        orderNotifyEmail:           body.orderNotifyEmail?.trim()   || null,
-        orderNotifyEmailEnabled:    body.orderNotifyEmailEnabled     ?? false,
-        customerEmailNotifications: body.customerEmailNotifications  ?? true,
-        showOrderTracking:          body.showOrderTracking           ?? true,
-        orderIdPrefix:              body.orderIdPrefix?.trim()       || 'FL',
-        outOfStockBehavior:         body.outOfStockBehavior          || 'show_unavailable',
-        stockAlertThreshold:        body.stockAlertThreshold         ?? 5,
+        // ── Orders ────────────────────────────────────────────────────────────
+        ...(body.autoConfirmOrders          !== undefined ? { autoConfirmOrders:          Boolean(body.autoConfirmOrders)          } : {}),
+        ...(body.requirePhoneVerify         !== undefined ? { requirePhoneVerify:         Boolean(body.requirePhoneVerify)         } : {}),
+        ...(body.requireCustomerEmail       !== undefined ? { requireCustomerEmail:       Boolean(body.requireCustomerEmail)       } : {}),
+        ...(body.orderNotifyEmail           !== undefined ? { orderNotifyEmail:           clean(body.orderNotifyEmail, 254)        } : {}),
+        ...(body.orderNotifyEmailEnabled    !== undefined ? { orderNotifyEmailEnabled:    Boolean(body.orderNotifyEmailEnabled)    } : {}),
+        ...(body.customerEmailNotifications !== undefined ? { customerEmailNotifications: Boolean(body.customerEmailNotifications) } : {}),
+        ...(body.showOrderTracking          !== undefined ? { showOrderTracking:          Boolean(body.showOrderTracking)          } : {}),
+        ...(body.orderIdPrefix              !== undefined ? { orderIdPrefix:              clean(body.orderIdPrefix, 10) || 'FL'   } : {}),
+        ...(body.outOfStockBehavior         !== undefined ? { outOfStockBehavior:         body.outOfStockBehavior                  } : {}),
+        ...(body.stockAlertThreshold        !== undefined ? { stockAlertThreshold:        Math.max(0, parseInt(body.stockAlertThreshold) || 5) } : {}),
 
-        // ── SEO ──────────────────────────────────────────────────────────
-        seoTitle:       body.seoTitle?.trim()       || null,
-        seoDescription: body.seoDescription?.trim() || null,
-        seoKeywords:    body.seoKeywords?.trim()    || null,
+        // ── Telegram ─────────────────────────────────────────────────────────
+        ...(body.telegramChatId !== undefined ? { telegramChatId: clean(body.telegramChatId, 50) } : {}),
 
-        // ── Legal ─────────────────────────────────────────────────────────
-        refundPolicy: body.refundPolicy?.trim() || null,
-        termsUrl:     body.termsUrl?.trim()     || null,
+        // ── SEO ──────────────────────────────────────────────────────────────
+        ...(body.seoTitle       !== undefined ? { seoTitle:       clean(body.seoTitle, 70)       } : {}),
+        ...(body.seoDescription !== undefined ? { seoDescription: clean(body.seoDescription, 160) } : {}),
+        ...(body.seoKeywords    !== undefined ? { seoKeywords:    clean(body.seoKeywords, 200)   } : {}),
 
-        // ── Custom bouquet (plan-gated) ───────────────────────────────────
-        allowCustomBouquet: plan.allowCustomBouquet
-          ? (body.allowCustomBouquet ?? true)
-          : false,
+        // ── Legal ─────────────────────────────────────────────────────────────
+        ...(body.refundPolicy !== undefined ? { refundPolicy: clean(body.refundPolicy, 5000) } : {}),
+        ...(body.termsUrl     !== undefined ? { termsUrl:     clean(body.termsUrl, 500)      } : {}),
+
+        // ── Custom bouquet (plan-gated) ───────────────────────────────────────
+        ...(body.allowCustomBouquet !== undefined ? {
+          allowCustomBouquet: plan.allowCustomBouquet ? Boolean(body.allowCustomBouquet) : false,
+        } : {}),
       },
     })
 
     return NextResponse.json({ success: true, shop: updated })
-  } catch (error: any) {
-    console.error('Shop update error:', error)
+  } catch (error: unknown) {
+    logger.error('shop/put', 'Shop update failed', { error: String(error) })
     return NextResponse.json({ error: 'Failed to update shop' }, { status: 500 })
   }
 }
@@ -139,41 +200,52 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json().catch(() => ({}))
     if (body.confirm !== 'DELETE') {
-      return NextResponse.json({ error: 'Send { confirm: "DELETE" } to confirm.' }, { status: 400 })
+      return NextResponse.json({ error: 'Send { confirm: "DELETE" } to confirm account deletion.' }, { status: 400 })
     }
+
     await prisma.user.delete({ where: { id: session.user.id } })
+    logger.info('shop/delete', 'Account deleted', { userId: session.user.id })
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Failed to delete shop' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error('shop/delete', 'Account deletion failed', { error: String(error) })
+    return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 })
   }
 }
 
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    const body   = await request.json()
-    const shop   = await prisma.shop.findFirst({ where: { ownerId: session.user.id }, include: { plan: true } })
+    const body = await request.json()
+    const shop = await prisma.shop.findFirst({
+      where: { ownerId: session.user.id },
+      include: { plan: true },
+    })
     if (!shop) return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
 
     const plan = getPlanConfig(shop.plan.slug)
     const updated = await prisma.shop.update({
       where: { id: shop.id },
       data: {
-        location:     body.location     ?? null,
-        about:        body.about        ?? null,
-        workingHours: body.workingHours ?? null,
-        ...(plan.allowCoverPhoto && body.coverImageUrl !== undefined
-          ? { coverImageUrl: body.coverImageUrl ?? null } : {}),
+        ...(body.location     !== undefined ? { location:     clean(body.location, 300)     } : {}),
+        ...(body.about        !== undefined ? { about:        clean(body.about, 1000)        } : {}),
+        ...(body.workingHours !== undefined ? { workingHours: body.workingHours || null      } : {}),
+        ...(plan.allowCoverPhoto && body.coverImageUrl !== undefined ? { coverImageUrl: clean(body.coverImageUrl, 500) } : {}),
       },
     })
+
     return NextResponse.json({ success: true, shop: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    logger.error('shop/patch', 'Shop partial update failed', { error: String(error) })
     return NextResponse.json({ error: 'Failed to update shop' }, { status: 500 })
   }
 }

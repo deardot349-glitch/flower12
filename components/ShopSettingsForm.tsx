@@ -60,8 +60,8 @@ export default function ShopSettingsForm({ shop, plan }: ShopSettingsFormProps) 
       if (!res.ok) throw new Error(data.error || 'Failed to update shop')
       setSuccess(true)
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Не вдалося зберегти зміни')
     } finally {
       setLoading(false)
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 const DIRECTORY_PLAN_SLUGS = ['basic', 'premium']
 
@@ -100,8 +101,8 @@ export async function GET(request: Request) {
       .sort() as string[]
 
     return NextResponse.json({ shops: sorted, cities })
-  } catch (error) {
-    console.error('Shops directory error:', error)
+  } catch (error: unknown) {
+    logger.error('shops-directory/get', 'Failed to load shops', { error: String(error) })
     return NextResponse.json({ error: 'Failed to load shops' }, { status: 500 })
   }
 }

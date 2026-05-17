@@ -22,7 +22,14 @@ const availabilityConfig: Record<string, { label: string; variant: 'success' | '
   out_of_stock: { label: 'Немає',       variant: 'muted'   },
 }
 
-export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId: string }) {
+// ── Props use shopSlug — never shopId ─────────────────────────────────────────
+export default function FlowerCard({
+  flower,
+  shopSlug,
+}: {
+  flower:   Flower
+  shopSlug: string
+}) {
   const [showOrderModal, setShowOrderModal] = useState(false)
 
   const isUnavailable = flower.availability === 'out_of_stock'
@@ -30,15 +37,23 @@ export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId:
 
   return (
     <>
-      <div className={`bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${isUnavailable ? 'opacity-60' : ''}`}>
+      <div
+        className={`bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${
+          isUnavailable ? 'opacity-60' : ''
+        }`}
+      >
         {/* Image */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50" style={{ height: '220px' }}>
+        <div
+          className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50"
+          style={{ height: '220px' }}
+        >
           {flower.imageUrl ? (
             <Image
               src={flower.imageUrl}
               alt={flower.name}
               fill
               className="object-cover hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -70,7 +85,7 @@ export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId:
               size="sm"
               className="flex-shrink-0"
             >
-              <ShoppingBag className="h-4 w-4" />
+              <ShoppingBag className="h-4 w-4 mr-1.5" />
               {isUnavailable ? 'Немає' : 'Замовити'}
             </Button>
           </div>
@@ -80,7 +95,7 @@ export default function FlowerCard({ flower, shopId }: { flower: Flower; shopId:
       {showOrderModal && (
         <OrderModal
           flower={flower}
-          shopId={shopId}
+          shopSlug={shopSlug}
           onClose={() => setShowOrderModal(false)}
         />
       )}

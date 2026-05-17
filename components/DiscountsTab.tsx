@@ -48,7 +48,7 @@ export default function DiscountsTab({ currency = 'UAH' }: { currency?: string }
       if (!res.ok) throw new Error(data.error)
       setForm({ code: '', type: 'percentage', value: '', minOrderAmount: '', maxUses: '', expiresAt: '' })
       setShowForm(false); load(); notify('✅ Промокод створено!')
-    } catch (err: any) { setError(err.message) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Помилка створення промокоду') }
     finally { setCreating(false) }
   }
 

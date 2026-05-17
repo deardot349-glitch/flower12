@@ -13,7 +13,26 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'FlowerGoUa — Платформа для квіткових магазинів',
   description: 'Створіть онлайн-магазин для вашого квіткового бізнесу за 5 хвилин. Без програмістів.',
-  keywords: 'квітковий магазин, флорист, онлайн магазин квітів, FlowerGoUa',
+  keywords: 'квітковий магазин, флорист, онлайн магазин квітів, FlowerGoUa, квіти онлайн, платформа для флориста',
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://flowergoua.com'),
+  openGraph: {
+    title: 'FlowerGoUa — Платформа для квіткових магазинів',
+    description: 'Створіть онлайн-магазин для вашого квіткового бізнесу за 5 хвилин. Без програмістів.',
+    url: '/',
+    siteName: 'FlowerGoUa',
+    locale: 'uk_UA',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FlowerGoUa — Платформа для квіткових магазинів',
+    description: 'Створіть онлайн-магазин для вашого квіткового бізнесу за 5 хвилин.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+  },
 }
 
 export const viewport: Viewport = {

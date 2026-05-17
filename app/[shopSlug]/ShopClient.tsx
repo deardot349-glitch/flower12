@@ -151,7 +151,7 @@ export default function ShopClient({ shop }: { shop: Shop }) {
       const res = await fetch('/api/discounts/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId: shop.id, code: promoCode.trim(), orderAmount: bouquetTotal }),
+        body: JSON.stringify({ shopSlug: shop.slug, code: promoCode.trim(), orderAmount: bouquetTotal }),
       })
       const data = await res.json()
       setPromoResult(data)

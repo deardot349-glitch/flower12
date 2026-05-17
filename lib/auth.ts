@@ -3,13 +3,18 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET environment variable is not set')
+}
+
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        email:    { label: 'Email',    type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -20,7 +25,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: normalizedEmail },
-          include: { shop: true }
+          include: { shop: true },
         })
 
         if (!user) return null
@@ -31,34 +36,30 @@ export const authOptions: NextAuthOptions = {
         )
         if (!isPasswordValid) return null
 
-        // ── Email verification gate ──────────────────────────────────────────
-        // Grace rule: users who registered BEFORE the verification system was
-        // introduced have emailVerified=false but no pending token. Auto-verify
-        // them on first login so they're not locked out forever.
+        // ── Email verification gate ──────────────────────────────────────
         if (!user.emailVerified) {
           if (!user.verificationToken) {
-            // Legacy account — verify in-place silently
+            // Legacy account without a pending token — verify silently
             await prisma.user.update({
               where: { id: user.id },
               data: { emailVerified: true },
             })
           } else {
-            // New account with a pending verification email — block login
-            // and tell the user what to do.
+            // New account awaiting verification
             throw new Error('EmailNotVerified')
           }
         }
 
         return {
-          id: user.id,
-          email: user.email,
-          shopId: user.shop?.id || undefined,
-          shopSlug: user.shop?.slug || undefined,
+          id:        user.id,
+          email:     user.email,
+          shopId:    user.shop?.id    ?? undefined,
+          shopSlug:  user.shop?.slug  ?? undefined,
         }
-      }
-    })
+      },
+    }),
   ],
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -78,4 +79,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: { signIn: '/login' },
+  // Disable error details in production
+  debug: process.env.NODE_ENV === 'development',
 }

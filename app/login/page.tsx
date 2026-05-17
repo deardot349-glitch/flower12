@@ -188,7 +188,7 @@ function LoginForm() {
             <Button type="submit" disabled={loading} className="w-full h-11" size="default">
               {loading
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Входимо...</>
-                : <>'Увійти <ArrowRight className="h-4 w-4" /></>
+                : <>Увійти <ArrowRight className="h-4 w-4" /></>
               }
             </Button>
           </form>

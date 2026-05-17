@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { PLANS } from '@/lib/plans'
+import { logger } from '@/lib/logger'
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 function checkAuth(request: Request): boolean {
@@ -38,10 +39,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  await ensurePlans()
+  try {
+    await ensurePlans()
 
-  const premiumPlan = await prisma.plan.findUnique({ where: { slug: 'premium' } })
-  if (!premiumPlan) return NextResponse.json({ error: 'Premium plan not found' }, { status: 500 })
+    const premiumPlan = await prisma.plan.findUnique({ where: { slug: 'premium' } })
+    if (!premiumPlan) return NextResponse.json({ error: 'Premium plan not found' }, { status: 500 })
 
   // ── User & shop ────────────────────────────────────────────────────────────
   const existing = await prisma.shop.findUnique({ where: { slug: DEMO_SLUG }, include: { owner: true } })
@@ -222,9 +224,13 @@ export async function POST(request: Request) {
     })
   }
 
-  return NextResponse.json({
-    success: true,
-    url: `/${DEMO_SLUG}`,
-    message: `Demo shop ready at /${DEMO_SLUG}`,
-  })
+    return NextResponse.json({
+      success: true,
+      url: `/${DEMO_SLUG}`,
+      message: `Demo shop ready at /${DEMO_SLUG}`,
+    })
+  } catch (error: unknown) {
+    logger.error('demo/post', 'Failed to seed demo shop', { error: String(error) })
+    return NextResponse.json({ error: 'Failed to seed demo shop' }, { status: 500 })
+  }
 }
